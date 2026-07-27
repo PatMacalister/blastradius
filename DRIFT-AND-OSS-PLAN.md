@@ -103,13 +103,46 @@ Four lessons, all of which changed the code:
    mutes it, a provider can now declare `changelog.unwatchable` with a mandatory `note`, and
    the scanner prints it as a standing blind spot on every run.
 
-**The uncomfortable finding.** Section 2 says providers that cannot be contract-tested
-should not ship, and this section says changelog watching covers providers where a test
-credential is impractical. Railway fails *both*: no machine-readable changelog, and a test
-credential with a paid floor. It is also the flagship provider — the incident the entire
-tool is named after. So the narrative centrepiece is the single least-defended module in the
-codebase, and no amount of process fixes that. Either the paid Railway account gets bought in
-Phase 2 or Railway's correctness rests on nothing but the code being right the first time.
+### The coverage invariant
+
+Added 2026-07-27, after two separate scares turned out to be the same shape.
+
+The worry was Railway: no machine-readable changelog at all, so Mechanism B cannot see it.
+Then Supabase turned out to have the opposite problem — its changelog is the best of the six,
+but its contract test barely tests anything, because classification is **entirely offline**.
+A publishable key is identified from its prefix and a legacy key from its JWT claims, so
+`introspect` never calls Supabase and the test asserts our own parsing against a stored
+string. It pins the key format; it cannot detect provider drift.
+
+Stating both together makes the actual rule obvious, and it is weaker than section 2 implies:
+
+> **Every provider must have at least one mechanism that touches the live world.
+> Not both.**
+
+| Provider | Changelog (B) | Contract test (A) | Live coverage |
+|---|---|---|---|
+| GitHub | ✅ RSS | ✅ `GET /user` | both |
+| Stripe | ✅ (after the locale fix) | ✅ `GET /v1/account` | both |
+| Vercel | ✅ Atom | ✅ `GET /v2/user` | both |
+| Cloudflare | ✅ RSS | ✅ verify endpoint | both |
+| Railway | ⛔ none exists | ✅ `me` query | **A only** |
+| Supabase | ✅ strong | ⚠️ offline — format pin only | **B only** |
+
+Both edge cases satisfy the invariant, which is why neither is the crisis it first looked
+like. Railway is defended by a live API call every week; Supabase is defended by a changelog
+that demonstrably produces relevant hits. What would be genuinely unacceptable is a provider
+with *neither* — an offline-classifying provider whose changelog is also unwatchable would
+be pure assertion, correct only for as long as nobody looked.
+
+**This is the check to run before adding any provider**, and it is now the first question in
+`CONTRIBUTING.md`. "Can it be contract-tested?" was the wrong question; "which mechanism
+covers this one, and does it touch reality?" is the right one.
+
+**The Railway caveat that remains.** Its single mechanism is the one with a human dependency:
+a test credential on a throwaway account that must not expire. If that credential lapses,
+Railway silently drops to zero live coverage while the build stays green — the contract test
+skips when no credential is configured. That specific failure is why the rotation runbook
+matters more for Railway than for anyone else.
 
 ## 4. Mechanism C — staleness surfaced in the report
 

@@ -100,6 +100,27 @@ test('an expired Supabase key is inactive', async () => {
   assert.equal(intro.valid, false);
 });
 
+// Real key shapes taken from the Supabase dashboard: they contain underscores and hyphens,
+// and the random portion is not especially long. A pattern tuned to a guessed length would
+// miss them.
+test('real-world publishable and secret key shapes are matched', () => {
+  const pub = 'sb_publishable_DL1Fq_t8GpJvI8iDfD1Yfw_QZ84-Aq';
+  const sec = 'sb_secret_3or9M-xK2vLpQ7wRt4zYn';
+  const byName = Object.fromEntries(supabase.patterns.map((p) => [p.name, p.regex]));
+
+  assert.equal(`KEY=${pub}`.match(byName['publishable-key'])?.[0], pub);
+  assert.equal(`KEY=${sec}`.match(byName['secret-key'])?.[0], sec);
+});
+
+test('a publishable key classifies as publishable, not as a secret', async () => {
+  const intro = await supabase.introspect('sb_publishable_DL1Fq_t8GpJvI8iDfD1Yfw_QZ84-Aq', {
+    fetchImpl: async () => fakeResponse({}),
+  });
+  assert.equal(intro.keyClass, 'publishable');
+  assert.deepEqual(intro.scopes, ['publishable']);
+  assert.equal(assessSeverity(supabase.toCapabilities(intro)), 'low');
+});
+
 test('an sb_secret_ key is classified from its prefix without a network call', async () => {
   const fetchImpl = recordingFetch(async () => { throw new Error('must not touch the network'); });
   const intro = await supabase.introspect(`sb_secret_${'a'.repeat(30)}`, { fetchImpl });

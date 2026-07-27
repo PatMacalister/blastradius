@@ -6,12 +6,28 @@ gate below is there to make that specific failure hard to ship.
 
 ## The one rule
 
-**A provider module that cannot be contract-tested will not be merged.**
+**Every provider must have at least one mechanism that touches the live world.**
 
-Not "should be" — will not. Review of a scope mapping otherwise requires the maintainer to
-independently know your provider's permission model well enough to catch a subtle error,
-which does not scale and is not reliable. The contract test proves the mapping against the
-live API, and turns review into something mechanical.
+There are two, and a module needs one of them working — not both:
+
+- **A contract test** that hits the provider's real API with a known-scope credential and
+  asserts the parsed result (`test/contract/`), or
+- **A watchable changelog** — RSS, Atom, or an HTML page that actually parses to entries —
+  so announced auth changes surface with lead time.
+
+A module with neither is pure assertion: correct only until someone changes something, with
+nothing anywhere to notice. That is the merge blocker.
+
+Which one you have determines what your PR must show. If your provider classifies
+credentials **offline** — from a prefix or from token claims, as Supabase does — then a
+contract test asserts only our own parsing and cannot detect drift. Say so in the PR and
+demonstrate the changelog instead: run `npm run changelog:scan` and paste the output. If
+your changelog is JavaScript-rendered or has no feed, say so and supply a contract-test
+credential.
+
+If you have a live contract test, that is what makes review mechanical: reviewing a scope
+mapping otherwise requires the maintainer to independently know your provider's permission
+model well enough to catch a subtle error, which does not scale and is not reliable.
 
 ## What a provider module must export
 

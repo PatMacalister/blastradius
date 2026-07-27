@@ -31,11 +31,20 @@ export const changelog = {
 };
 
 export const patterns = [
-  { name: 'secret-key', regex: /\bsb_secret_[A-Za-z0-9_-]{20,}\b/, confidence: 0.99 },
-  { name: 'publishable-key', regex: /\bsb_publishable_[A-Za-z0-9_-]{20,}\b/, confidence: 0.99 },
+  // The prefix is the entire discriminator here, so the length floor is deliberately low.
+  // A high minimum buys no precision on a string starting `sb_secret_` and only creates a
+  // way to miss a real credential if Supabase ever shortens the random portion.
+  { name: 'secret-key', regex: /\bsb_secret_[A-Za-z0-9_-]{12,}/, confidence: 0.99 },
+  { name: 'publishable-key', regex: /\bsb_publishable_[A-Za-z0-9_-]{12,}/, confidence: 0.99 },
   { name: 'management-token', regex: /\bsbp_[a-f0-9]{40}\b/, confidence: 0.95 },
-  // Legacy keys are plain JWTs, which are far too generic to match on shape. Require the
-  // variable name as context; group 1 is the credential.
+  // Legacy anon/service_role keys are plain JWTs, far too generic to match on shape. Require
+  // the variable name as context; group 1 is the credential.
+  //
+  // These are on a clock. Projects created since November 2025 receive no legacy keys, and
+  // Supabase has them scheduled for removal in late 2026 — after which this pattern and the
+  // JWT branch of introspect() become dead code. Do not delete them early: the keys that
+  // already exist in the wild are exactly the long-lived credentials sitting in old .env
+  // files, which is the population this tool is for.
   {
     name: 'legacy-jwt-env',
     // The signature segment length is deliberately loose. Real Supabase JWTs carry a ~43
