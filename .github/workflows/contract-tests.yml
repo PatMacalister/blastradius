@@ -30,10 +30,23 @@ jobs:
           # Low-privilege, non-destructive credentials. See CONTRIBUTING.md.
           # A provider with no secret configured skips rather than fails, so a fork's PR
           # still runs the unit suite and the contract validator.
+          #
+          # EVERY provider must be listed here. A provider whose variables are missing
+          # skips silently, and a silent skip reads exactly like a pass — this list was
+          # written in Phase 0 with two providers and did not grow when four more shipped,
+          # which would have meant four modules quietly unverified on a green build.
           BLASTRADIUS_TEST_GITHUB: ${{ secrets.BLASTRADIUS_TEST_GITHUB }}
           BLASTRADIUS_EXPECT_GITHUB: ${{ vars.BLASTRADIUS_EXPECT_GITHUB }}
           BLASTRADIUS_TEST_STRIPE: ${{ secrets.BLASTRADIUS_TEST_STRIPE }}
           BLASTRADIUS_EXPECT_STRIPE: ${{ vars.BLASTRADIUS_EXPECT_STRIPE }}
+          BLASTRADIUS_TEST_RAILWAY: ${{ secrets.BLASTRADIUS_TEST_RAILWAY }}
+          BLASTRADIUS_EXPECT_RAILWAY: ${{ vars.BLASTRADIUS_EXPECT_RAILWAY }}
+          BLASTRADIUS_TEST_SUPABASE: ${{ secrets.BLASTRADIUS_TEST_SUPABASE }}
+          BLASTRADIUS_EXPECT_SUPABASE: ${{ vars.BLASTRADIUS_EXPECT_SUPABASE }}
+          BLASTRADIUS_TEST_VERCEL: ${{ secrets.BLASTRADIUS_TEST_VERCEL }}
+          BLASTRADIUS_EXPECT_VERCEL: ${{ vars.BLASTRADIUS_EXPECT_VERCEL }}
+          BLASTRADIUS_TEST_CLOUDFLARE: ${{ secrets.BLASTRADIUS_TEST_CLOUDFLARE }}
+          BLASTRADIUS_EXPECT_CLOUDFLARE: ${{ vars.BLASTRADIUS_EXPECT_CLOUDFLARE }}
         run: npm run test:contract
 
       - name: Report drift
