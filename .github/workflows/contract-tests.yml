@@ -1,0 +1,44 @@
+name: contract-tests
+
+# Mechanism A: catch silent semantic drift in provider APIs.
+# Weekly is enough — auth models do not change daily — plus on any PR that touches a
+# provider module, which is the gate that makes community contributions reviewable.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  pull_request:
+    paths:
+      - 'src/providers/**'
+      - 'src/core/capabilities.mjs'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Contract tests against live provider APIs
+        env:
+          # Low-privilege, non-destructive credentials. See CONTRIBUTING.md.
+          # A provider with no secret configured skips rather than fails, so a fork's PR
+          # still runs the unit suite and the contract validator.
+          BLASTRADIUS_TEST_GITHUB: ${{ secrets.BLASTRADIUS_TEST_GITHUB }}
+          BLASTRADIUS_EXPECT_GITHUB: ${{ vars.BLASTRADIUS_EXPECT_GITHUB }}
+          BLASTRADIUS_TEST_STRIPE: ${{ secrets.BLASTRADIUS_TEST_STRIPE }}
+          BLASTRADIUS_EXPECT_STRIPE: ${{ vars.BLASTRADIUS_EXPECT_STRIPE }}
+        run: npm run test:contract
+
+      - name: Report drift
+        if: failure() && github.event_name == 'schedule'
+        run: |
+          echo "::error::Contract tests failed on the scheduled run."
+          echo "Either a provider changed its API, or a test credential expired."
+          echo "Do NOT re-stamp lastVerified until the cause is known."

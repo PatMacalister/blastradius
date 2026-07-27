@@ -1,0 +1,8 @@
+.git
+node_modules
+*.md
+.github
+.env
+.env.*
+!.env.example
+tools/.changelog-state

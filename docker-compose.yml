@@ -1,0 +1,91 @@
+# BlastRadius — VPS deployment.
+#
+# READ THIS FIRST, because this compose file is not shaped like the other projects in this
+# repo. BlastRadius is a CLI, and 03-execution-plan.md rules out a hosted service as a
+# non-goal: a server that accepts other people's credentials for scanning would make this
+# tool the precise thing it exists to warn about. So nothing here listens on a port.
+#
+# What is actually worth hosting is the **drift machinery** — the Phase 2 maintenance
+# strategy that keeps provider modules from silently rotting. That is what runs here.
+#
+#   docker compose up -d changelog-watch          the always-on piece, needs no credentials
+#   docker compose --profile contract up -d       adds the weekly live-API contract tests
+#   docker compose --profile scan run --rm scan   one-shot scan of a mounted directory
+#
+# Credentials: only the `contract` profile needs any, and they are deliberately isolated in
+# ops/contract-tests.env (gitignored). See ops/contract-tests.env.example.
+
+services:
+  # ---------------------------------------------------------------------------------------
+  # Mechanism B — announced-change early warning.
+  #
+  # Fetches public provider changelogs and filters them to auth vocabulary. Holds no
+  # credentials and needs no network ingress, which makes it the safe thing to leave running.
+  # ---------------------------------------------------------------------------------------
+  changelog-watch:
+    build: .
+    image: blastradius:local
+    container_name: blastradius-changelog-watch
+    restart: unless-stopped
+    environment:
+      INTERVAL_SECONDS: "604800"   # weekly — provider auth models do not change daily
+      RUN_AT_START: "1"
+    volumes:
+      # Without this, a restart re-reports every changelog entry as new and the digest
+      # becomes noise — which is the failure mode DRIFT-AND-OSS-PLAN.md warns about.
+      - changelog-state:/app/tools/.changelog-state
+    command: ["sh", "tools/watch-loop.sh", "node", "tools/changelog-scan.mjs"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ---------------------------------------------------------------------------------------
+  # Mechanism A — contract tests against live provider APIs.
+  #
+  # Profile-gated because it is useless without test credentials, and a service that boot-loops
+  # on missing secrets trains you to ignore the logs.
+  #
+  # Hosting these here rather than in GitHub Actions is a real trade-off, not just a
+  # preference: the test credentials live on a box you control instead of in a third party's
+  # secret store, but they are also long-lived on that box and nothing rotates them for you.
+  # The rotation runbook in DRIFT-AND-OSS-PLAN.md is the mitigation and is not optional.
+  # ---------------------------------------------------------------------------------------
+  contract-tests:
+    build: .
+    image: blastradius:local
+    container_name: blastradius-contract-tests
+    restart: unless-stopped
+    profiles: ["contract"]
+    env_file:
+      - ops/contract-tests.env
+    environment:
+      INTERVAL_SECONDS: "604800"
+      RUN_AT_START: "1"
+    command: ["sh", "tools/watch-loop.sh", "node", "--test", "test/contract/providers.contract.test.mjs"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # ---------------------------------------------------------------------------------------
+  # One-shot scan of a mounted directory.
+  #
+  # The mount is read-only: BlastRadius never needs to write to what it scans, and a scanner
+  # with write access to your source tree is an unnecessary risk.
+  #
+  #   TARGET=/srv/myapp docker compose --profile scan run --rm scan
+  #
+  # Note this scans the *mounted path only*. It cannot see the host's environment variables
+  # or ~/.claude MCP config, which are the most agent-reachable places a credential sits — so
+  # a container scan is strictly less thorough than running the CLI on the host. Use it for
+  # CI over a checkout, not as your only check.
+  # ---------------------------------------------------------------------------------------
+  scan:
+    build: .
+    image: blastradius:local
+    profiles: ["scan"]
+    volumes:
+      - ${TARGET:-.}:/scan:ro
+    command: ["node", "src/cli.mjs", "/scan", "--no-env", "--no-agent-config"]
+
+volumes:
+  changelog-state:

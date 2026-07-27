@@ -1,0 +1,19 @@
+{
+  "name": "blastradius",
+  "version": "0.1.0",
+  "private": true,
+  "description": "What can the credentials on this machine actually destroy?",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "blastradius": "src/cli.mjs"
+  },
+  "scripts": {
+    "scan": "node src/cli.mjs",
+    "test": "node --test \"test/unit/*.test.mjs\"",
+    "test:contract": "node --test \"test/contract/*.test.mjs\"",
+    "changelog:scan": "node tools/changelog-scan.mjs"
+  }
+}

@@ -1,0 +1,12 @@
+# Normalise text by default.
+* text=auto
+
+# Anything that runs inside the Linux container MUST keep LF endings. A shell script that
+# arrives with CRLF fails as `/bin/sh^M: bad interpreter: no such file or directory`, which
+# is one of the least informative errors in computing — and the repo is authored on Windows,
+# so without this it happens on the first VPS deploy.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+ops/*.env*      text eol=lf

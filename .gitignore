@@ -1,0 +1,17 @@
+node_modules/
+*.log
+.DS_Store
+
+# Changelog scanner state — snapshots of provider changelogs for diffing.
+tools/.changelog-state/
+
+# Never commit anything that could hold a real credential.
+.env
+.env.*
+!.env.example
+*.report.json
+
+# Live contract-test credentials for the VPS deployment. The whole point of this project is
+# that a credential in the working tree is reachable by anything that goes looking.
+ops/*.env
+!ops/*.env.example
