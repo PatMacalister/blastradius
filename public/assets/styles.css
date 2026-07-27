@@ -587,6 +587,57 @@ a:hover { text-decoration-color: var(--ember); }
 }
 .link-arrow:hover { border-bottom-color: var(--ember); }
 
+/* ------------------------------------------------------------- legal pages */
+
+/* Imprint and privacy. Narrow measure, plain hierarchy — these exist to be read
+   and cited, not admired, so the noir stays in the ground colour and nowhere else. */
+.legal { max-width: 46rem; }
+
+.legal__sub {
+  font-size: var(--t-lede);
+  line-height: 1.44;
+  color: var(--ink-soft);
+  max-width: 52ch;
+  margin-bottom: 2.6rem;
+}
+
+.legal h2 {
+  font-family: var(--sans);
+  font-size: var(--t-h3);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
+  margin: 2.4rem 0 0.7rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--rule);
+}
+.legal h3 {
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.8rem 0 0.5rem;
+  color: var(--ink);
+}
+.legal p { color: var(--ink-soft); max-width: 60ch; }
+.legal a { color: var(--ink); }
+
+.legal ul {
+  margin: 0 0 1.05em;
+  padding-left: 1.1rem;
+  color: var(--ink-soft);
+  max-width: 60ch;
+}
+.legal li { margin-bottom: 0.85em; }
+.legal li strong { color: var(--ink); font-weight: 600; }
+
+.legal__rule {
+  border: 0;
+  border-top: 1px solid var(--rule-strong);
+  margin: 3.2rem 0 0;
+}
+.legal section[lang='de'] h2 { border-top: 0; padding-top: 0; }
+
 /* ------------------------------------------------------------------- foot */
 
 .foot {
