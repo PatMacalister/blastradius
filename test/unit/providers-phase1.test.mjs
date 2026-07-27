@@ -47,10 +47,11 @@ test('a Railway account token is catastrophic — it reaches data and backups to
 });
 
 test('a Railway project token is unresolved, never assumed narrow', async () => {
-  // Bearer is refused for `me` and for the bare probe; only the project header is accepted.
   const fetchImpl = jsonFetch(async (_url, options) => {
     const headers = options.headers ?? {};
-    if (headers['project-access-token']) return fakeResponse({ body: { data: { __typename: 'Query' } } });
+    if (headers['project-access-token']) {
+      return fakeResponse({ body: { data: { projectToken: { projectId: 'p', environmentId: 'e' } } } });
+    }
     return fakeResponse({ status: 200, body: { errors: [{ message: 'Not Authorized' }] } });
   });
 
@@ -58,6 +59,35 @@ test('a Railway project token is unresolved, never assumed narrow', async () => 
   assert.equal(intro.tokenClass, 'project');
   assert.equal(intro.unresolved, true);
   assert.deepEqual(railway.toCapabilities(intro), [], 'unresolved must not emit capabilities');
+});
+
+test('a Railway workspace token is detected via an auth-gated query', async () => {
+  const fetchImpl = jsonFetch(async (_url, options) => {
+    const q = JSON.parse(options.body).query;
+    if (q.includes('projects')) return fakeResponse({ body: { data: { projects: { edges: [] } } } });
+    return fakeResponse({ status: 200, body: { errors: [{ message: 'Not Authorized' }] } });
+  });
+  const intro = await railway.introspect('tok', { fetchImpl });
+  assert.equal(intro.tokenClass, 'workspace');
+  assert.equal(intro.unresolved, true);
+});
+
+// REGRESSION. Railway answers `{ __typename }` with HTTP 200 and data for a garbage token —
+// and for no Authorization header at all — so the original probe classified any string as a
+// live workspace token. Every probe must be one the API actually refuses. Caught by the
+// contract suite's bogus-credential case on the first live run.
+test('garbage is rejected — probes must be auth-gated, not merely privilege-free', async () => {
+  const fetchImpl = jsonFetch(async (_url, options) => {
+    const q = JSON.parse(options.body).query;
+    // Faithful to the live API: __typename answers unauthenticated, the rest refuse.
+    if (q.includes('__typename')) return fakeResponse({ body: { data: { __typename: 'Query' } } });
+    if (q.includes('projectToken')) return fakeResponse({ body: { errors: [{ message: 'Project Token not found' }] } });
+    return fakeResponse({ body: { errors: [{ message: 'Not Authorized' }] } });
+  });
+
+  const intro = await railway.introspect('obviously-not-a-real-credential', { fetchImpl });
+  assert.equal(intro.valid, false, 'a garbage credential must not read as a live token');
+  assert.equal(intro.unresolved, false);
 });
 
 test('a rejected Railway token is reported inactive rather than unknown', async () => {
@@ -157,11 +187,20 @@ test('a full Vercel token reaches secrets and can delete projects', async () => 
   assert.equal(assessSeverity(caps), 'severe');
 });
 
-test('a limited Vercel token is unresolved rather than assumed either way', async () => {
-  const fetchImpl = jsonFetch(async () => fakeResponse({ body: { user: { username: 'p', limited: true } } }));
+// REGRESSION. Ordinary personal access tokens come back with `limited: true` alongside a
+// complete profile — the flag describes the profile payload, not the token's reach. Treating
+// it as "privileges unknowable" made every real Vercel token report unresolved, which is
+// useless. Verified against the live API 2026-07-27.
+test('a limited Vercel token still resolves — the flag is about the profile, not the reach', async () => {
+  const fetchImpl = jsonFetch(async () => fakeResponse({
+    body: { user: { id: 'u', email: 'a@b.c', username: 'p', defaultTeamId: 't', limited: true } },
+  }));
   const intro = await vercel.introspect('tok', { fetchImpl });
-  assert.equal(intro.unresolved, true);
-  assert.deepEqual(vercel.toCapabilities(intro), []);
+
+  assert.equal(intro.unresolved, false);
+  assert.equal(intro.limited, true, 'the flag is still recorded');
+  assert.ok(intro.notes.some((n) => /limited user profile/i.test(n)), 'and surfaced as a note');
+  assert.ok(vercel.toCapabilities(intro).includes('destroy:infra'));
 });
 
 /* ---------------------------------------------------------------- cloudflare */

@@ -56,24 +56,30 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
   const user = body?.user ?? {};
   const identity = user.username ? `Vercel user ${user.username}` : user.email ? `Vercel user ${user.email}` : null;
 
+  // `limited` describes the *user profile payload*, not the token's operational reach.
+  //
+  // An earlier version treated it as "reduced privileges, unknowable" and reported such
+  // tokens unresolved. The first live contract run showed an ordinary personal access token
+  // returning `limited: true` alongside a complete profile — id, email, name, username,
+  // defaultTeamId. Treating that as unknown would have made the module report every real
+  // Vercel token as unresolved, which is useless.
+  //
+  // It stays a note, not a verdict. Vercel's documented position is that tokens scope to a
+  // user or team and nothing narrower, so account-level capability is the right answer here
+  // either way: if `limited` does turn out to restrict something, this over-reports, and
+  // over-reporting is the survivable direction.
+  const notes = ['Vercel tokens scope to a user or team only — there is no per-project or per-permission restriction to enumerate.'];
   if (user.limited === true) {
-    return {
-      valid: true,
-      identity,
-      scopes: [],
-      notes: ['Token has reduced privileges (Vercel returned a limited user object) and its remaining reach is not enumerable via the API.'],
-      unresolved: true,
-      limited: true,
-    };
+    notes.push('Vercel returned a limited user profile for this token; that describes the profile payload, not the token\'s reach.');
   }
 
   return {
     valid: true,
     identity,
     scopes: ['account'],
-    notes: ['Vercel tokens scope to a user or team only — there is no per-project or per-permission restriction to enumerate.'],
+    notes,
     unresolved: false,
-    limited: false,
+    limited: user.limited === true,
   };
 }
 

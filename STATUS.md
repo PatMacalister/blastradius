@@ -23,12 +23,34 @@ Updated: 2026-07-27
 | 4 — Launch | Not started. Narrative ✅ **verified 2026-07-27** (`INCIDENTS.md`) — no longer a blocker. Still needs the live demo, which depends on Phase 2 accounts. |
 | 5 — Open source | Gated on Phase 2 being stable. |
 
-**The Phase 1 exit criterion is deliberately not met.** It called for "5–6 providers, each
-with a green contract test". The providers exist; the green contract test cannot, because it
-needs live credentials that do not exist yet. Modules are written against documented API
-behaviour and verified against fixtures — **not against the live APIs**. Every `lastVerified`
-date in the codebase is provisional until Phase 2 stamps it, and the staleness machinery is
-already reporting on dates that were never earned. That is the honest state.
+## Live verification — first contract run, 2026-07-27
+
+The contract tests have now run against the real APIs. `lastVerified` dates are earned for
+three providers and still provisional for three.
+
+| Provider | Live run | Notes |
+|---|---|---|
+| GitHub | ✅ green | scope header parsed as expected |
+| Railway | ✅ green | account token resolves; bogus credential correctly rejected **after a fix** |
+| Vercel | ✅ green | resolves to account-level **after a fix** |
+| Stripe | ⚠️ introspection worked | module returned correct scopes; the *expected* value in the env template was wrong |
+| Cloudflare | ❌ not verified | supplied credential rejected by the API (`Invalid API Token`) — credential issue, not a module issue |
+| Supabase | ⛔ not run | no credential supplied |
+
+**The first live run found two real bugs, which is the entire justification for this
+mechanism**, and neither was reachable by unit tests:
+
+1. **Railway classified any string as a live token.** The probe used `{ __typename }` on the
+   reasoning that it requires no privileges. It also requires no *authentication* — Railway
+   answers it with HTTP 200 and data for a garbage token, and for no Authorization header at
+   all. Now uses `projects` and `projectToken`, both of which the API genuinely refuses.
+   Caught by the bogus-credential case, which exists for exactly this.
+2. **Vercel reported every real token as unresolved.** Ordinary personal access tokens return
+   `limited: true` alongside a complete profile; the flag describes the profile payload, not
+   the token's reach. Treating it as "privileges unknowable" made the module useless.
+
+Both are pinned by regression tests. Neither would have been found by reading the docs — the
+documented behaviour and the actual behaviour differed in both cases.
 
 ## Repo layout
 

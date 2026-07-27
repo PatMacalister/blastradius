@@ -93,10 +93,19 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
     };
   }
 
-  // `__typename` needs no privileges, so it separates "token rejected" from
-  // "token accepted but not permitted to read the account".
-  const probe = await graphql(fetchImpl, { authorization: `Bearer ${secret}` }, '{ __typename }');
-  if (probe.body?.data?.__typename) {
+  // Every remaining probe MUST be one the API refuses without valid credentials.
+  //
+  // The first version of this used `{ __typename }` on the reasoning that it needs no
+  // privileges. It needs no *authentication* either: Railway answers it with HTTP 200 and
+  // data for a garbage token, and for no Authorization header at all. So it classified any
+  // string as a live workspace token — caught by the contract test's bogus-credential case
+  // on the first live run, which is precisely the job that test exists to do.
+  //
+  // `projects` returns "Not Authorized" without a valid Bearer token; `projectToken` returns
+  // "Project Token not found" without a valid project token. Both verified against the live
+  // API 2026-07-27.
+  const asWorkspace = await graphql(fetchImpl, { authorization: `Bearer ${secret}` }, '{ projects { edges { node { id } } } }');
+  if (asWorkspace.body?.data?.projects) {
     return {
       valid: true,
       identity: 'Railway workspace-scoped token',
@@ -107,8 +116,8 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
     };
   }
 
-  const asProject = await graphql(fetchImpl, { 'project-access-token': secret }, '{ __typename }');
-  if (asProject.body?.data?.__typename) {
+  const asProject = await graphql(fetchImpl, { 'project-access-token': secret }, '{ projectToken { projectId environmentId } }');
+  if (asProject.body?.data?.projectToken) {
     return {
       valid: true,
       identity: 'Railway project token',
@@ -119,7 +128,10 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
     };
   }
 
-  if (asAccount.res.status === 401 || asAccount.res.status === 403) {
+  // Railway answers HTTP 200 with a GraphQL `errors` array rather than a 4xx, so status
+  // alone cannot decide this. Three auth-gated probes have now refused the credential;
+  // that is a rejection.
+  if (asAccount.res.ok || asAccount.res.status === 401 || asAccount.res.status === 403) {
     return { valid: false, identity: null, scopes: [], notes: ['token rejected'], unresolved: false };
   }
 
