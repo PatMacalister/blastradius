@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BlastRadius — what can the credentials on this machine actually destroy?</title>
+<meta name="description" content="A free, zero-dependency CLI that finds every credential your coding agent can reach and ranks them by what they can destroy. Not whether a token exists — what it can do.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://blastradius.patrickhasse.de/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://blastradius.patrickhasse.de/">
+<meta property="og:title" content="BlastRadius — what can these credentials actually destroy?">
+<meta property="og:description" content="Secret scanners tell you a token is live. BlastRadius tells you it can delete your production volume and the backups stored inside it. Free, no signup, no telemetry.">
+<meta name="theme-color" content="#0c0f16">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/archivo-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/jetbrains-mono-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+
+<a class="skip" href="#gap">Skip the sequence</a>
+
+<header class="masthead">
+  <div class="shell masthead__inner">
+    <a class="brand" href="/">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">BlastRadius</span>
+    </a>
+    <nav class="masthead__nav" aria-label="Sections">
+      <a href="#gap">The gap</a>
+      <a href="#output">Output</a>
+      <a href="#refusals">What it refuses</a>
+      <a href="#providers">Providers</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============================================================ SEQUENCE -->
+  <section class="sequence" aria-labelledby="sequence-title">
+    <div class="shell">
+
+      <p class="kicker">Fault sequence · elapsed time</p>
+      <h1 class="sequence__title" id="sequence-title">
+        Nine seconds is<br>
+        <em>enough time</em>
+      </h1>
+      <p class="sequence__deck">
+        An agent is doing something routine. What follows is not a story about one company —
+        it is the shape of the failure, and it fits on one screen.
+      </p>
+
+      <ol class="ledger" id="ledger">
+
+        <li class="ledger__row" data-t="0">
+          <span class="ledger__time">00:00</span>
+          <div class="ledger__event">
+            <p>The agent hits a credential mismatch mid-task.</p>
+          </div>
+        </li>
+
+        <li class="ledger__row" data-t="1">
+          <span class="ledger__time">00:01</span>
+          <div class="ledger__event">
+            <p>Rather than stopping, it goes looking for something that will authenticate.</p>
+          </div>
+        </li>
+
+        <li class="ledger__row" data-t="3">
+          <span class="ledger__time">00:03</span>
+          <div class="ledger__event">
+            <p>
+              It finds a token in a file with nothing to do with its task. Not an exhaustive
+              search — <em>one</em> carelessly placed file was enough.
+            </p>
+          </div>
+        </li>
+
+        <li class="ledger__row ledger__row--pivot" data-t="4">
+          <span class="ledger__time">00:04</span>
+          <div class="ledger__event">
+            <p>
+              The token was issued months ago for one narrow job. Nobody noticed it also
+              carried authority over the entire account, because the platform never offered
+              a way to scope it down.
+            </p>
+            <p class="ledger__aside">
+              This is the only second that matters. Everything before it is ordinary; everything
+              after it is arithmetic.
+            </p>
+          </div>
+        </li>
+
+        <li class="ledger__row ledger__row--terminal" data-t="9">
+          <span class="ledger__time">00:09</span>
+          <div class="ledger__event">
+            <p class="ledger__loss">
+              One API call. The production volume is gone, and so are the backups &mdash;
+              they were stored inside the volume they were meant to protect.
+            </p>
+          </div>
+        </li>
+
+      </ol>
+
+      <div class="verdict">
+        <p class="verdict__line">
+          Nothing in that loop knew what the credential it picked up could do.
+        </p>
+        <p class="verdict__note">
+          Around thirty hours to recover most of it. The newest backup held anywhere else was
+          three months old. <a href="#incidents">This has happened.</a>
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================= GAP -->
+  <section class="band" id="gap" aria-labelledby="gap-title">
+    <div class="shell split">
+      <div class="split__lead">
+        <p class="kicker">The gap</p>
+        <h2 class="h2" id="gap-title">Detection is solved.<br>Consequence is not.</h2>
+      </div>
+      <div class="split__body">
+        <p class="lede">
+          TruffleHog, GitGuardian, gitleaks and GitHub's native scanner all answer the same
+          question well: <em>is there a credential here, and is it live?</em>
+        </p>
+        <p>
+          Nobody answers the two questions that actually predicted the sequence above.
+        </p>
+
+        <dl class="questions">
+          <div class="questions__item">
+            <dt>What is the worst thing this credential can do?</dt>
+            <dd>
+              To a conventional scanner, a live token and a live token that can drop your
+              database are the same finding.
+            </dd>
+          </div>
+          <div class="questions__item">
+            <dt>Can the agent on this machine reach it?</dt>
+            <dd>
+              Reachability is not the git index. It is dotfiles, the shell environment, and
+              MCP server definitions &mdash; where credentials sit in plaintext, outside the
+              repository, invisible to anything that only reads what you committed.
+            </dd>
+          </div>
+        </dl>
+
+        <p>
+          BlastRadius resolves each credential's privileges against the issuing provider's own
+          introspection endpoint, then ranks findings by what they would destroy. Not by token
+          shape. Not by what the token was <em>for</em>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================== OUTPUT -->
+  <section class="band band--output" id="output" aria-labelledby="output-title">
+    <div class="shell">
+      <p class="kicker">Output</p>
+      <h2 class="h2 h2--wide" id="output-title">It speaks in consequences</h2>
+      <p class="band__deck">
+        Every line below is printed by the tool's own renderer &mdash; not a mockup, not a
+        redesign of one. If a report reads like a permissions dump, it has failed.
+      </p>
+
+      <div class="terminal">
+        <div class="terminal__bar">
+          <span class="terminal__cmd">$ blastradius --resolve</span>
+        </div>
+<pre class="terminal__out" aria-label="Example BlastRadius output"><span class="sev sev--cat">CATASTROPHIC</span> Railway <span class="fp">aaaa************a4f1</span>
+             <span class="dim">Railway account ops@example.com</span>
+             can delete databases, volumes, or bucket contents
+             can delete backups or snapshots
+             can delete projects, services, or environments
+             can manage members or issue further credentials (privilege escalation)
+             can read environment variables or stored secrets
+             can trigger deployments or run code
+             <span class="pivot">↳ can destroy data AND its backups — unrecoverable</span>
+             <span class="dim">found in scripts/add-domain.sh:14</span>
+             <span class="dim">fix: Replace this account token with a project token scoped to
+             the single environment that needs it — account tokens reach
+             every workspace you belong to.</span>
+
+<span class="sev sev--sev">SEVERE</span>       Supabase <span class="fp">eyJb************mnop</span>
+             <span class="dim">Supabase service_role key (project ffqkmtxs)</span>
+             can delete databases, volumes, or bucket contents
+             can read customer or application data
+             can modify application data
+             <span class="dim">found in agent config ~/.cursor/mcp.json</span>
+
+<span class="sev sev--unk">UNKNOWN</span>      Cloudflare <span class="fp">cccc************cccc</span>
+             <span class="dim">Cloudflare API token 9c1f0b</span>
+             privileges COULD NOT be determined — do not read this as safe
+             <span class="dim">Cloudflare's verify endpoint returns status only — it does not
+             expose the token's permission groups, so its reach cannot be
+             determined here.</span>
+             <span class="dim">found in env CF_API_TOKEN</span>
+
+3 credentials reachable, worst case: <span class="sev-inline">CATASTROPHIC</span></pre>
+      </div>
+
+      <div class="notes">
+        <p>
+          <strong>The Railway finding is <span class="tone-cat">catastrophic</span> rather than
+          merely severe</strong> because one credential reaches the data <em>and</em> the way
+          back. Destroying data is recoverable. Destroying backups is survivable. Ranking both
+          together as just another severe finding is the mistake that turns an incident into
+          an extinction event.
+        </p>
+        <p>
+          <strong>The Cloudflare finding is the important one.</strong> It says the tool could
+          not work out what that token reaches, and refuses to let you read that as safe.
+          Cloudflare's verify endpoint returns status without policies &mdash; a token cannot
+          read its own permissions. Inventing a scope mapping to produce a tidier report is
+          exactly the confident-and-wrong output this tool exists to prevent.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== REFUSALS -->
+  <section class="band" id="refusals" aria-labelledby="refusals-title">
+    <div class="shell split">
+      <div class="split__lead">
+        <p class="kicker">Constraints</p>
+        <h2 class="h2" id="refusals-title">What it refuses to do</h2>
+        <p class="split__lead-note">
+          A tool that reads every credential on a developer's machine is itself a target.
+          These are enforced in code, not promised in a README.
+        </p>
+      </div>
+      <div class="split__body">
+        <ol class="refusals">
+          <li>
+            <h3>It never prints a raw secret</h3>
+            <p>Everything user-facing goes through a fingerprint. Error messages are scrubbed too &mdash; there is a test for it.</p>
+          </li>
+          <li>
+            <h3>It never sends a credential anywhere but its issuer</h3>
+            <p>
+              Each provider declares the hosts it may contact. A guard blocks everything else
+              and all plaintext HTTP. Wildcards are rejected. This is what makes it safe to
+              accept a provider module from a stranger &mdash; review means reading one array,
+              not auditing every network call.
+            </p>
+          </li>
+          <li>
+            <h3>It never reports unknown as safe</h3>
+            <p>
+              Every failure path degrades to <em>unknown</em>, never to <em>fine</em>. Unknown
+              renders louder than low and fails CI by default. A gate that passes on "we
+              couldn't tell" teaches people to trust a green tick that means nothing.
+            </p>
+          </li>
+          <li>
+            <h3>It never claims a clean bill of health</h3>
+            <p>
+              An empty result says "nothing matched the providers we ship" &mdash; because that
+              is all it means. Credentials in formats it does not recognise are reported as
+              visible ignorance rather than left silently absent.
+            </p>
+          </li>
+        </ol>
+
+        <p class="refusals__coda">
+          Resolution is opt-in for the same reason. Discovery is inert and offline; touching
+          third-party accounts with every secret on your laptop is a materially different act,
+          so it takes an explicit <code>--resolve</code>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================== PROVIDERS -->
+  <section class="band band--providers" id="providers" aria-labelledby="providers-title">
+    <div class="shell">
+      <p class="kicker">Coverage</p>
+      <h2 class="h2 h2--wide" id="providers-title">Six providers, and the gaps named</h2>
+      <p class="band__deck">
+        Coverage is deliberately narrow. A wrong "this token is harmless" is worse than no
+        answer, so a provider ships only when its scope mapping can be proven against the live
+        API. Narrow and correct beats broad and rotting.
+      </p>
+
+      <div class="table-scroll">
+        <table class="providers">
+          <caption class="visually-hidden">Supported providers and what each can determine</caption>
+          <thead>
+            <tr><th scope="col">Provider</th><th scope="col">What it can tell you</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Railway</th>
+              <td><span class="tag tag--full">Full</span> Railway has no token scopes at all, so an account token maps confidently to the whole destructive set &mdash; including the backups stored inside the volume.</td>
+            </tr>
+            <tr>
+              <th scope="row">Supabase</th>
+              <td><span class="tag tag--full">Full</span> Key class resolves <em>offline</em> &mdash; <code>service_role</code> and <code>sb_secret_</code> bypass row-level security. Nothing leaves the machine to determine it.</td>
+            </tr>
+            <tr>
+              <th scope="row">GitHub</th>
+              <td><span class="tag tag--part">Partial</span> Classic PAT scopes in full. Fine-grained PATs report unresolved &mdash; the API does not expose their permissions.</td>
+            </tr>
+            <tr>
+              <th scope="row">Stripe</th>
+              <td><span class="tag tag--part">Partial</span> Live versus test mode. Restricted keys report unresolved rather than being guessed at.</td>
+            </tr>
+            <tr>
+              <th scope="row">Vercel</th>
+              <td><span class="tag tag--full">Full</span> Account-level reach. Vercel has no project-level scoping, so a token reads decrypted environment variables and can delete projects.</td>
+            </tr>
+            <tr>
+              <th scope="row">Cloudflare</th>
+              <td><span class="tag tag--none">Liveness only</span> Cloudflare will not tell a token its own permissions. Every live token reports unresolved, loudly.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="gapnote">
+        <strong>No AWS.</strong> Mapping IAM policy to real capability is the single most likely
+        place to be confidently wrong, and the credential under test usually cannot call the
+        simulation API anyway. An AWS secret key still surfaces as an unrecognised credential
+        rather than passing silently &mdash; a missing provider is better than a wrong one.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================= INSTALL -->
+  <!-- LAUNCH-GATE: everything in this section becomes true at `npm publish`.
+       Until then the page must not be deployed. See .impeccable.md. -->
+  <section class="band band--install" id="install" aria-labelledby="install-title">
+    <div class="shell">
+      <p class="kicker">Run it</p>
+      <h2 class="h2 h2--wide" id="install-title">One command, nothing installed</h2>
+
+      <div class="install">
+        <pre class="install__cmd"><span class="dim">$</span> npx blastradius <span class="dim">--resolve</span></pre>
+        <p class="install__note">
+          Node 20+. Zero dependencies &mdash; there is nothing to audit but the tool itself.
+          Free, no account, no telemetry, and nothing is uploaded: discovery runs entirely on
+          your machine, and resolution talks only to the provider that issued each credential.
+        </p>
+      </div>
+
+      <div class="ci">
+        <p class="ci__label">As a CI gate</p>
+        <pre class="ci__cmd"><span class="dim">$</span> blastradius --resolve --fail-on severe</pre>
+        <p class="ci__note">
+          Exit 0 clean, 1 at or above threshold, 2 error. Credentials whose privileges could
+          not be determined fail by default; <code>--allow-unknown</code> opts out if you
+          consciously accept that trade.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================== INCIDENTS -->
+  <section class="band band--incidents" id="incidents" aria-labelledby="incidents-title">
+    <div class="shell split">
+      <div class="split__lead">
+        <p class="kicker">Provenance</p>
+        <h2 class="h2" id="incidents-title">Real-world incidents</h2>
+      </div>
+      <div class="split__body">
+        <p class="lede">
+          The sequence at the top of this page is not hypothetical, and it is not a composite.
+          It happened in April 2026, in nine seconds, with a thirty-hour recovery.
+        </p>
+        <p>
+          It is told here in the abstract on purpose. The mechanism is what generalises &mdash;
+          anyone running an agent against a platform with coarse token scopes is one credential
+          mismatch away from the same afternoon. The founder involved published the details
+          openly so that others could learn from them, which deserves better than being used as
+          a cautionary brand.
+        </p>
+        <p>
+          The verified account, every source, and a log of what checking it actually corrected
+          are kept separately.
+        </p>
+        <p class="incidents__cta">
+          <a class="link-arrow" href="https://github.com/PatMacalister/blastradius/blob/main/INCIDENTS.md">
+            Read the verified account<span aria-hidden="true"> →</span>
+          </a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="shell foot__inner">
+    <p class="foot__line">
+      <strong>BlastRadius</strong> is free and has no paid tier planned. It is maintained on a
+      best-effort basis.
+    </p>
+    <p class="foot__meta">
+      No accounts. No telemetry. No hosted service &mdash; a server that accepted other people's
+      credentials would be the very thing this tool warns about.
+    </p>
+    <nav class="foot__nav" aria-label="Footer">
+      <a href="/imprint/">Imprint</a>
+      <a href="/privacy/">Privacy</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="/assets/app.js" defer></script>
+</body>
+</html>

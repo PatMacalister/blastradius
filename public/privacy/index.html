@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — BlastRadius</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0c0f16">
+<meta name="color-scheme" content="dark">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<main class="band" style="border-top:0">
+  <div class="shell" style="max-width:44rem">
+    <p class="kicker">Privacy</p>
+    <h1 class="h2" style="margin-bottom:1.6rem">Privacy</h1>
+
+    <p class="lede" style="max-width:52ch">
+      This site collects nothing. The tool it describes uploads nothing. Both statements are
+      short because they are complete.
+    </p>
+
+    <div style="margin-top:2.2rem;color:var(--ink-soft);font-size:var(--t-sm)">
+      <p><strong style="color:var(--ink)">This website</strong></p>
+      <p>
+        Static pages only. No analytics, no tracking pixels, no cookies, no embedded
+        third-party scripts, no fonts loaded from anyone else's server &mdash; the typefaces
+        are served from this domain. There are no forms and no accounts, so there is nothing
+        to submit and nothing stored about you.
+      </p>
+      <p>
+        The web server keeps ordinary access logs (IP address, timestamp, requested path,
+        user agent) for operational and security purposes. These are not analysed for
+        behaviour, not linked to any identity, and not shared.
+        <!-- LAUNCH-GATE: confirm the retention period your VPS actually uses and state it
+             here. A stated period you do not enforce is worse than no statement. -->
+        [CONFIRM RETENTION PERIOD BEFORE LAUNCH]
+      </p>
+
+      <p style="margin-top:2rem"><strong style="color:var(--ink)">The BlastRadius tool</strong></p>
+      <p>
+        The command-line tool has no telemetry of any kind. It never reports what it finds to
+        anyone, including us &mdash; there is no server to report to.
+      </p>
+      <p>
+        Discovery runs entirely on your machine and is offline. When you pass
+        <code>--resolve</code>, the tool contacts the provider that issued each credential
+        &mdash; GitHub, Stripe, Railway, Supabase, Vercel or Cloudflare &mdash; and nobody
+        else. Each provider module declares the hosts it may contact and a guard blocks every
+        other destination, so a credential cannot be sent somewhere unexpected even by a
+        faulty or malicious module.
+      </p>
+      <p>
+        Credentials are never written to disk by the tool and never appear in its output;
+        everything user-facing is fingerprinted, and error messages are scrubbed.
+      </p>
+
+      <p style="margin-top:2rem"><strong style="color:var(--ink)">Your rights</strong></p>
+      <p>
+        Under the GDPR you may request access to, correction of, or erasure of personal data
+        held about you. In practice the only such data is the access log described above.
+        Contact details are in the <a href="/imprint/">imprint</a>.
+      </p>
+    </div>
+
+    <p class="incidents__cta" style="margin-top:2.5rem">
+      <a class="link-arrow" href="/">Back<span aria-hidden="true"> →</span></a>
+    </p>
+  </div>
+</main>
+</body>
+</html>

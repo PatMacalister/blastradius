@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="BlastRadius">
+  <rect width="32" height="32" fill="#0c0f16"/>
+  <!-- The reach, then the origin: a small source with a radius far larger than itself. -->
+  <circle cx="16" cy="16" r="11.5" fill="none" stroke="#f4643a" stroke-opacity="0.28" stroke-width="1.5"/>
+  <circle cx="16" cy="16" r="7" fill="none" stroke="#f4643a" stroke-opacity="0.55" stroke-width="1.5"/>
+  <circle cx="16" cy="16" r="3" fill="#f4643a"/>
+</svg>
