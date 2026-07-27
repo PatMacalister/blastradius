@@ -34,6 +34,8 @@ already reporting on dates that were never earned. That is the honest state.
 
 | Path | What |
 |---|---|
+| `TODO-PATRICK.md` | **Start here** — the account/credential/decision tasks blocking Phase 2 |
+| `INCIDENTS.md` | Verified account of the reference incident + verification log |
 | `01-idea-proposal.md` | Stage 1 case, problem/solution, scoring |
 | `03-execution-plan.md` | Five-phase build plan, non-goals, open decisions |
 | `DRIFT-AND-OSS-PLAN.md` | Maintenance strategy — the answer to the treadmill |
