@@ -138,6 +138,38 @@ BlastRadius is not a product and has no paid tier planned. Reasoning is recorded
 [STATUS.md](STATUS.md); the maintenance strategy that makes a free tool sustainable is in
 [DRIFT-AND-OSS-PLAN.md](DRIFT-AND-OSS-PLAN.md).
 
+### Support posture
+
+Stated plainly so it does not have to be inferred:
+
+- **Maintained on a best-effort basis, by one person.** There is no SLA, no support contract,
+  and no guaranteed response time. Issues are read; not all of them get fixed.
+- **Provider coverage is intentionally narrow and will stay that way.** Requests for a new
+  provider are welcome, but the bar is the coverage invariant in
+  [CONTRIBUTING.md](CONTRIBUTING.md): a module that cannot be kept correct will not be added,
+  because a wrong "this token is harmless" is worse than no answer.
+- **Correctness reports get priority over everything else.** If BlastRadius told you a
+  credential was safe and it was not, that is the bug that matters most — say so and it goes
+  to the front.
+- **No warranty.** This is a diagnostic aid, not a security audit. It reports what each
+  provider's own API says about a credential and, where it cannot determine something, says
+  so. Do not treat a clean report as a clean bill of health; it is not one, and the tool will
+  tell you as much.
+
+## Agent hooks
+
+If you want an agent stopped before it does something irreversible, there is no runtime
+integration to install — the exit code is the contract:
+
+```bash
+blastradius --resolve --fail-on catastrophic || echo "refusing to continue"
+```
+
+Exit 1 at or above the threshold, 0 below it, 2 on error. That is deliberately all: a runtime
+guard would mean a per-agent integration surface, and a maintenance burden this project has
+decided against carrying. A documented exit code composes with whatever hook mechanism your
+agent already has.
+
 ## Development
 
 ```bash

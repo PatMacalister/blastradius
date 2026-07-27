@@ -27,10 +27,52 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const STATE_DIR = join(HERE, '.changelog-state');
 
 /**
- * The filter. Terms chosen because they precede the changes that actually break scope
- * resolution — anything about how permissions are named, granted, or read.
+ * The filter, in two tiers — because a title and a body are different kinds of evidence.
+ *
+ * A heading is authored to describe the change, so a weak term in it ("token", "role") is a
+ * real signal. Six hundred characters of surrounding prose is not: navigation furniture,
+ * code samples and unrelated sentences all contain those words, and matching on them turns
+ * every entry into a hit. Measured on Stripe's changelog, single-tier matching over bodies
+ * flagged 20 of 38 entries, the first being page boilerplate — the noise failure this whole
+ * mechanism is supposed to avoid.
+ *
+ * So: weak terms count only in a title; a body must carry something that is hard to say by
+ * accident.
  */
-const RELEVANT = /\b(scope|permission|token|api key|credential|auth|oauth|deprecat|breaking|sunset|retire|removed|least privilege|iam|role|introspect)/i;
+const RELEVANT_TITLE = /\b(scope|permission|token|api key|credential|auth|oauth|deprecat|breaking|sunset|retire|removed|least privilege|iam|role|introspect)/i;
+
+/**
+ * Body vocabulary is restricted to *announcement* words — the things a provider says when
+ * they are retiring something. Descriptive technical terms are deliberately excluded even
+ * though they sound more on-topic: "permission", "scope", "api key" and "access token" occur
+ * constantly in API-documentation prose and code samples, so including them flagged 42–50%
+ * of every HTML changelog. Announcement words do not appear by accident.
+ *
+ * Measured before and after on Stripe, Supabase, Vercel, Cloudflare and GitHub.
+ */
+const RELEVANT_BODY = /\b(breaking change|deprecat|sunset|end of life|will be removed|no longer supported|will stop working|discontinu|migrate to|removal of)/i;
+
+/**
+ * An entry is relevant if its title says so, or its body does.
+ *
+ * How much to trust the body depends on where it came from, and conflating the two costs
+ * accuracy in both directions:
+ *
+ * - **RSS/Atom `description`** is a summary the provider wrote for that entry. It is on
+ *   topic by construction, so the full vocabulary applies. Restricting it to announcement
+ *   words dropped Vercel from 14 relevant entries to zero — a source that still looked
+ *   watched while missing everything.
+ * - **HTML chunk text** is whatever sat between two headings: prose, navigation, code
+ *   samples, and part of the next entry. Only announcement words survive there.
+ */
+function isRelevant(entry, { trustedBody = false } = {}) {
+  if (RELEVANT_TITLE.test(entry.title)) return true;
+  const body = entry.body ?? '';
+  return trustedBody ? RELEVANT_TITLE.test(body) : RELEVANT_BODY.test(body);
+}
+
+/** Kept as the documented single-tier filter for tests and for callers that want it. */
+const RELEVANT = RELEVANT_TITLE;
 
 const MAX_ENTRIES = 40;
 
@@ -69,14 +111,40 @@ function parseFeed(xml) {
 
 /**
  * HTML changelogs have no stable structure across providers, so rather than pretending to
- * parse them, take headings as entries. Cruder, and honest about being crude.
+ * parse them, treat each heading as an entry and the prose that follows it as the body.
+ *
+ * Capturing the body matters more than it looks. The first version kept headings only, which
+ * works for providers who write descriptive ones ("Breaking Change: OAuth token endpoint will
+ * return HTTP 200") and fails completely for providers who use version identifiers. Stripe
+ * heads its entries "Dahlia" and "2026-06-24.dahlia", so a heading-only parse produced 38
+ * entries and zero filter matches — a source that looked watched and saw nothing. What
+ * changed is described in the prose underneath.
  */
+/**
+ * Kept short on purpose. A chunk runs from one heading to the next, so a long slice bleeds
+ * into neighbouring entries and one deprecation notice flags the three entries around it.
+ *
+ * Note the first-run/steady-state distinction before tuning this further: the state file
+ * means only *new* entries are ever reported, so the 38-entry first sweep of a changelog is
+ * a one-off. In steady state a provider publishes a handful of entries a week, and that —
+ * not the first run — is the number that determines whether the digest gets read.
+ */
+const BODY_CHARS = 300;
+
 function parseHtml(html) {
-  const headings = html.match(/<h[1-4][^>]*>[\s\S]*?<\/h[1-4]>/gi) ?? [];
-  return headings
+  // Split on the opening heading tags, so each chunk is one heading plus everything until
+  // the next. Chunk 0 is whatever preceded the first heading and is discarded.
+  const chunks = html.split(/<h[1-4][^>]*>/i).slice(1);
+  return chunks
     .slice(0, MAX_ENTRIES)
-    .map((h) => ({ title: stripTags(h), link: '', body: '' }))
-    .filter((e) => e.title.length > 3);
+    .map((chunk) => {
+      const close = chunk.search(/<\/h[1-4]>/i);
+      if (close === -1) return null;
+      const title = stripTags(chunk.slice(0, close));
+      const body = stripTags(chunk.slice(close)).slice(0, BODY_CHARS);
+      return { title, link: '', body };
+    })
+    .filter((e) => e && e.title.length > 3);
 }
 
 async function loadState(id) {
@@ -150,7 +218,7 @@ async function scanProvider(provider, { fetchImpl = fetch } = {}) {
     const key = entry.title;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (RELEVANT.test(`${entry.title} ${entry.body}`)) result.new.push(entry);
+    if (isRelevant(entry, { trustedBody: provider.changelog.type === 'rss' })) result.new.push(entry);
   }
 
   // Bound the state file — old entries falling off the feed will never come back.
@@ -211,4 +279,4 @@ if (invokedDirectly) {
     });
 }
 
-export { parseFeed, parseHtml, stripTags, RELEVANT, scanProvider, main };
+export { parseFeed, parseHtml, stripTags, RELEVANT, RELEVANT_BODY, isRelevant, scanProvider, main };

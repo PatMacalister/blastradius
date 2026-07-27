@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFeed, parseHtml, stripTags, RELEVANT, scanProvider } from '../../tools/changelog-scan.mjs';
+import { parseFeed, parseHtml, stripTags, RELEVANT, isRelevant, scanProvider } from '../../tools/changelog-scan.mjs';
 
 const RSS = `<?xml version="1.0"?><rss><channel>
   <item><title>Fine-grained PAT permissions updated</title><link>https://example.com/1</link>
@@ -51,6 +51,33 @@ test('HTML changelogs fall back to headings', () => {
 
 test('stripTags removes markup and scripts', () => {
   assert.equal(stripTags('<p>hello <b>world</b></p><script>evil()</script>'), 'hello world');
+});
+
+/* --------------------------------------------------------------- the filter */
+
+// Stripe heads its changelog entries with version identifiers ("2026-06-24.dahlia"), so a
+// heading-only parse saw 38 entries and matched none of them — watched in name only.
+test('HTML entries carry the prose under the heading, not just the heading', () => {
+  const entries = parseHtml('<h2>2026-06-24.dahlia</h2><p>Deprecates the legacy tokens endpoint.</p>');
+  assert.equal(entries[0].title, '2026-06-24.dahlia');
+  assert.match(entries[0].body, /Deprecates the legacy tokens endpoint/);
+  assert.ok(isRelevant(entries[0]), 'the change is described in the body, so it must still match');
+});
+
+// The two body vocabularies exist because the two sources are not equally trustworthy.
+test('an untrusted HTML body needs announcement vocabulary, not merely technical words', () => {
+  const codeSample = { title: 'Elements', body: 'Pass your api key and set the permission scope on the request.' };
+  const announcement = { title: 'Elements', body: 'This endpoint is deprecated and will be removed.' };
+
+  assert.equal(isRelevant(codeSample), false, 'API-docs prose is full of these words');
+  assert.equal(isRelevant(announcement), true);
+});
+
+test('a curated RSS description is trusted with the full vocabulary', () => {
+  const entry = { title: 'Improvements to the CLI', body: 'Changes how an access token is scoped.' };
+
+  assert.equal(isRelevant(entry), false, 'as untrusted HTML text this is not enough');
+  assert.equal(isRelevant(entry, { trustedBody: true }), true, 'as an authored summary it is');
 });
 
 /* ------------------------------------------------------- coverage self-checks */
