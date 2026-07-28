@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-BlastRadius is a zero-dependency Node CLI (Node 20+, ESM `.mjs`, `"type": "module"`) that answers "what can the credentials on this machine actually destroy, and can a coding agent reach them?" It is a free tool, deliberately not a product — see STATUS.md ("Why free"). A hosted service that accepts credentials is an explicit non-goal; nothing in this repo listens on a port.
+BlastRadius is a zero-dependency Node CLI (Node 20+, ESM `.mjs`, `"type": "module"`) that answers "what can the credentials on this machine actually destroy, and can a coding agent reach them?" It is a free tool, deliberately not a product — see STATUS.md ("Why free"). A hosted service that accepts credentials is an explicit non-goal: no service in this repo accepts a credential over a network. The only inbound listener is nginx serving the static landing page (`docker-compose.coolify.yml`), isolated on its own Docker network from the container that holds live test credentials.
 
 ## Commands
 

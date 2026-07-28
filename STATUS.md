@@ -77,7 +77,9 @@ documented behaviour and the actual behaviour differed in both cases.
 | `ops/contract-tests.env.example` | Test-credential template for the contract service |
 
 **On the Docker deployment**, because it is not shaped like the other projects in this repo:
-nothing listens on a port. A hosted service that accepts other people's credentials is a
+the only inbound service is static file serving for the landing page, on its own network
+with no route to the container holding test credentials. Nothing accepts a credential over a
+network. A hosted service that accepts other people's credentials is a
 explicit non-goal, and would make this tool the thing it warns about. What is
 hosted is the changelog watcher and the contract-test runner — the Phase 2 maintenance
 strategy. A `scan` profile exists for CI over a mounted checkout, and it is strictly less

@@ -129,7 +129,8 @@ docker compose --profile contract up -d       # weekly live-API contract tests
 TARGET=/srv/myapp docker compose --profile scan run --rm scan
 ```
 
-Nothing here listens on a port. BlastRadius is a CLI, and a hosted service that accepts
+Only the landing page listens on a port, and it serves static files. No service here
+accepts a credential over a network. BlastRadius is a CLI, and a hosted service that accepts
 other people's credentials is a non-goal — it would make this tool the thing it warns
 about. What the compose file hosts is the *drift machinery* that keeps provider modules
 correct. See [DRIFT-AND-OSS-PLAN.md](DRIFT-AND-OSS-PLAN.md).

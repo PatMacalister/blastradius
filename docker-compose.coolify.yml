@@ -1,0 +1,121 @@
+# BlastRadius drift machinery — Coolify deployment.
+#
+# The same two services as docker-compose.yml, adjusted for how Coolify actually runs a
+# compose file. Use this one in Coolify; use docker-compose.yml locally. Three differences,
+# each of which would otherwise fail silently or confusingly:
+#
+#   1. NO `profiles:`. Coolify runs the equivalent of `docker compose up` with no --profile
+#      flags, so a profile-gated service is simply never started. In the main file
+#      contract-tests sits behind `profiles: ["contract"]` — on Coolify that means the live
+#      API verification quietly never runs, while the deployment shows green. That is the
+#      silent-coverage failure this project keeps having to design against.
+#
+#   2. NO `env_file:`. ops/contract-tests.env is gitignored, so it does not exist in the
+#      repository Coolify clones, and a missing env_file aborts the deploy. Credentials come
+#      from Coolify's own environment-variable store instead, substituted below. That is also
+#      the better place for them: they are encrypted at rest and never sit in a file.
+#
+#   3. NO `container_name:`. Coolify manages container naming per deployment; fixed names
+#      collide across redeploys.
+#
+# THE LANDING PAGE AND THE CREDENTIALS ARE DELIBERATELY NOT ON THE SAME NETWORK.
+#
+# contract-tests holds six live provider credentials. `landing` is the only thing here that
+# accepts inbound traffic. Putting both on compose's default network would let a compromised
+# web container reach the one holding the credentials — a small version of the exact story
+# this tool exists to tell. So they sit on separate networks: Docker gives no route between
+# two networks a container does not share, which is the isolation wanted here.
+#
+# `drift` is deliberately NOT `internal: true`. That flag severs outbound traffic as well as
+# inbound, and both drift services exist to make outbound calls — provider APIs and changelog
+# feeds. Marking it internal would leave the containers running and quietly unable to do the
+# one thing they are for, which reads as a healthy deployment.
+#
+# The page is served by stock nginx rather than by adding an HTTP server to the BlastRadius
+# image. The claim on the page is "there is nothing to audit but the tool itself"; hand-rolling
+# static file serving, path traversal and all, would quietly stop that being true.
+#
+# SET THESE IN COOLIFY → your resource → Environment Variables. A provider whose TEST value is
+# empty skips its contract test and still exits 0, so a partially configured deployment looks
+# exactly like a fully passing one. Set all twelve, or knowingly accept the blind spot:
+#
+#   BLASTRADIUS_TEST_GITHUB      BLASTRADIUS_EXPECT_GITHUB
+#   BLASTRADIUS_TEST_STRIPE      BLASTRADIUS_EXPECT_STRIPE
+#   BLASTRADIUS_TEST_RAILWAY     BLASTRADIUS_EXPECT_RAILWAY
+#   BLASTRADIUS_TEST_SUPABASE    BLASTRADIUS_EXPECT_SUPABASE
+#   BLASTRADIUS_TEST_VERCEL      BLASTRADIUS_EXPECT_VERCEL
+#   BLASTRADIUS_TEST_CLOUDFLARE  BLASTRADIUS_EXPECT_CLOUDFLARE
+#
+# These are live credentials on a machine you do not physically control. Every one of them
+# must be non-destructive and issued from a dedicated throwaway account — see
+# ops/contract-tests.env.example — and rotation is not optional: ops/ROTATION-RUNBOOK.md.
+
+services:
+  # Mechanism B — announced-change early warning. Holds no credentials, needs no ingress,
+  # and is the safe thing to leave running permanently.
+  changelog-watch:
+    build: .
+    restart: unless-stopped
+    environment:
+      INTERVAL_SECONDS: "604800"   # weekly — provider auth models do not change daily
+      RUN_AT_START: "1"
+    volumes:
+      # Without this, every redeploy re-reports every changelog entry as new and the digest
+      # becomes noise — the exact failure mode that gets a watcher muted.
+      - changelog-state:/app/tools/.changelog-state
+    command: ["sh", "tools/watch-loop.sh", "node", "tools/changelog-scan.mjs"]
+    networks: [drift]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # Mechanism A — contract tests against live provider APIs. This is the service that makes
+  # `lastVerified` a promise rather than a claim.
+  contract-tests:
+    build: .
+    restart: unless-stopped
+    environment:
+      INTERVAL_SECONDS: "604800"
+      RUN_AT_START: "1"
+      BLASTRADIUS_TEST_GITHUB: ${BLASTRADIUS_TEST_GITHUB:-}
+      BLASTRADIUS_EXPECT_GITHUB: ${BLASTRADIUS_EXPECT_GITHUB:-}
+      BLASTRADIUS_TEST_STRIPE: ${BLASTRADIUS_TEST_STRIPE:-}
+      BLASTRADIUS_EXPECT_STRIPE: ${BLASTRADIUS_EXPECT_STRIPE:-}
+      BLASTRADIUS_TEST_RAILWAY: ${BLASTRADIUS_TEST_RAILWAY:-}
+      BLASTRADIUS_EXPECT_RAILWAY: ${BLASTRADIUS_EXPECT_RAILWAY:-}
+      BLASTRADIUS_TEST_SUPABASE: ${BLASTRADIUS_TEST_SUPABASE:-}
+      BLASTRADIUS_EXPECT_SUPABASE: ${BLASTRADIUS_EXPECT_SUPABASE:-}
+      BLASTRADIUS_TEST_VERCEL: ${BLASTRADIUS_TEST_VERCEL:-}
+      BLASTRADIUS_EXPECT_VERCEL: ${BLASTRADIUS_EXPECT_VERCEL:-}
+      BLASTRADIUS_TEST_CLOUDFLARE: ${BLASTRADIUS_TEST_CLOUDFLARE:-}
+      BLASTRADIUS_EXPECT_CLOUDFLARE: ${BLASTRADIUS_EXPECT_CLOUDFLARE:-}
+    command: ["sh", "tools/watch-loop.sh", "node", "--test", "test/contract/"]
+    networks: [drift]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # The static landing page. Read-only mount, no credentials, no application code.
+  #
+  # Until `npm publish` lands, the install section on this page is not yet true — it tells
+  # visitors to run `npx blastradius`. Keep this on Coolify's generated hostname and off the
+  # real domain until the package exists. Note that hostname is enumerable from Certificate
+  # Transparency logs the moment a cert is issued, so it is unadvertised rather than secret.
+  landing:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - ./public:/usr/share/nginx/html:ro
+    networks: [web]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  # Separate networks, so `landing` has no route to the credential-holding container.
+  # Both allow outbound: the drift services must reach provider APIs.
+  drift:
+  web:
+
+volumes:
+  changelog-state:
