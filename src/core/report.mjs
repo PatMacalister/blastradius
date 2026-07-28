@@ -12,7 +12,7 @@
  *      own "last verified" caveat.
  */
 
-import { fingerprint } from './redact.mjs';
+import { fingerprint, stripControl } from './redact.mjs';
 import { describeCapabilities, severityRank } from './capabilities.mjs';
 import { staleProviders } from '../providers/index.mjs';
 
@@ -134,7 +134,7 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
     lines.push(`${colour(sev, label)} ${who} ${dim(fingerprint(f.secret))}`);
 
     if (f.introspection?.identity) {
-      lines.push(`             ${dim(f.introspection.identity)}`);
+      lines.push(`             ${dim(stripControl(f.introspection.identity))}`);
     }
 
     if (!resolved) {
@@ -144,8 +144,8 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
     } else if (f.unresolved) {
       // Deliberately worded so this cannot be skim-read as "nothing found".
       lines.push('             privileges COULD NOT be determined — do not read this as safe');
-      for (const note of f.introspection?.notes ?? []) lines.push(`             ${dim(note)}`);
-      if (f.error) lines.push(`             ${dim(f.error)}`);
+      for (const note of f.introspection?.notes ?? []) lines.push(`             ${dim(stripControl(note))}`);
+      if (f.error) lines.push(`             ${dim(stripControl(f.error))}`);
     } else {
       for (const { describe } of describeCapabilities(f.capabilities)) {
         lines.push(`             can ${describe}`);
@@ -162,7 +162,7 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
       lines.push(`             ${dim(`found in ${where}`)}`);
     }
 
-    for (const fix of f.remediation ?? []) lines.push(`             ${dim(`fix: ${fix}`)}`);
+    for (const fix of f.remediation ?? []) lines.push(`             ${dim(`fix: ${stripControl(fix)}`)}`);
 
     if (f.staleness?.stale) {
       lines.push(`             ${dim(`provider module last verified ${f.staleness.age} days ago — treat with caution`)}`);
@@ -211,13 +211,13 @@ export function renderJson(findings, { resolved = true, unrecognised = [] } = {}
       severity: f.severity,
       unresolved: Boolean(f.unresolved),
       inactive: Boolean(f.inactive),
-      identity: f.introspection?.identity ?? null,
+      identity: stripControl(f.introspection?.identity ?? null),
       capabilities: f.capabilities ?? [],
       consequences: describeCapabilities(f.capabilities ?? []).map((c) => c.describe),
-      remediation: f.remediation ?? [],
+      remediation: (f.remediation ?? []).map(stripControl),
       sources: f.sources,
       providerLastVerified: f.provider?.lastVerified ?? null,
-      error: f.error ?? null,
+      error: stripControl(f.error ?? null),
     })),
   }, null, 2);
 }

@@ -36,6 +36,30 @@ export const STALENESS_WARN_DAYS = 90;
 
 const REQUIRED_FUNCTIONS = ['introspect', 'toCapabilities', 'remediation'];
 
+/**
+ * Catastrophic backtracking: an unbounded quantifier applied to a group that itself contains
+ * one. `/^(a+)+$/` is the textbook case, and it passed every other check here — one match
+ * against 41 characters took 91 seconds, measured. Discovery runs every pattern over every
+ * line of every file, so a single such regex in a contributed module hangs the whole tool on
+ * input an attacker chooses. Denial of service is a quiet failure for a security scanner: it
+ * does not report the wrong answer, it reports nothing, and a run that never finishes reads
+ * as a run that found nothing.
+ *
+ * Deliberately a source-level heuristic rather than a real analysis. JavaScript regexes are
+ * synchronous and cannot be interrupted, so there is no runtime timeout to fall back on, and
+ * a zero-dependency project is not going to ship a regex engine. It catches the shapes that
+ * actually appear; it is not a proof of safety, which is why apiHosts and pattern review stay
+ * human jobs (see CONTRIBUTING.md).
+ */
+function hasNestedQuantifier(source) {
+  // A quantified group — ")+", ")*", "){n,}" — whose body carries an unbounded quantifier.
+  const quantifiedGroup = /\(([^()]*)\)\s*(?:[+*]|\{\d+,\})/g;
+  for (const [, body] of source.matchAll(quantifiedGroup)) {
+    if (/[+*]|\{\d+,\}/.test(body)) return true;
+  }
+  return false;
+}
+
 export function validateProvider(mod) {
   const errors = [];
   const need = (cond, msg) => { if (!cond) errors.push(msg); };
@@ -74,6 +98,13 @@ export function validateProvider(mod) {
   for (const [i, p] of (mod.patterns ?? []).entries()) {
     need(typeof p?.name === 'string', `patterns[${i}].name must be a string`);
     need(p?.regex instanceof RegExp, `patterns[${i}].regex must be a RegExp`);
+    if (p?.regex instanceof RegExp) {
+      need(
+        !hasNestedQuantifier(p.regex.source),
+        `patterns[${i}].regex nests an unbounded quantifier inside a quantified group, ` +
+        'which backtracks catastrophically and would hang discovery — rewrite it with a bounded length',
+      );
+    }
     need(
       typeof p?.confidence === 'number' && p.confidence > 0 && p.confidence <= 1,
       `patterns[${i}].confidence must be in (0, 1]`,

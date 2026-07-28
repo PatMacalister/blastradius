@@ -74,3 +74,28 @@ test('staleness is measured from the verification stamp', () => {
   assert.equal(stalenessOf({ lastVerified: '2026-07-20' }, now).stale, false);
   assert.equal(stalenessOf({ lastVerified: '2026-01-01' }, now).stale, true);
 });
+
+// A regex that backtracks catastrophically passed every other gate. Measured: /^(a+)+$/
+// against 41 characters took 91 seconds, and discovery runs patterns over every line of
+// every file. For a scanner, a run that never finishes reads as a run that found nothing.
+test('a catastrophically backtracking pattern is rejected', () => {
+  const base = {
+    id: 'evil', label: 'Evil', lastVerified: '2026-07-28', apiHosts: ['api.evil.test'],
+    changelog: { url: 'https://evil.test/feed', type: 'rss' },
+    introspect: async () => ({}), toCapabilities: () => [], remediation: () => [],
+  };
+
+  for (const bad of [/^(a+)+$/, /(x*)*y/, /([a-z]+)+@/, /(\d{2,})+z/]) {
+    const { ok, errors } = validateProvider({ ...base, patterns: [{ name: 'boom', regex: bad, confidence: 0.9 }] });
+    assert.equal(ok, false, `${bad} must be rejected`);
+    assert.ok(errors.some((e) => /backtrack/i.test(e)), `${bad} should name the reason`);
+  }
+});
+
+// The guard must not be so blunt it rejects the patterns already shipping.
+test('every shipped provider pattern passes the backtracking check', () => {
+  for (const mod of providers) {
+    const { ok, errors } = validateProvider(mod);
+    assert.ok(ok, `${mod.id}: ${errors.join('; ')}`);
+  }
+});

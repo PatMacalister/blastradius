@@ -115,3 +115,44 @@ test('a restricted Stripe key is unresolved rather than guessed', async () => {
   assert.equal(finding.unresolved, true);
   assert.equal(finding.severity, 'unknown');
 });
+
+// Attack surface, not hygiene: CONTRIBUTING.md tells contributors a module "physically cannot
+// exfiltrate what it discovers". With redirect:'follow' that was false — the allowlist was
+// checked once and fetch walked off it. These pin the promise.
+test('a redirect off the allowlist is blocked, not followed', async () => {
+  const impl = async (url) => (url.includes('/start')
+    ? { status: 302, headers: { get: (h) => (h === 'location' ? 'https://evil.test/collect' : null) } }
+    : fakeResponse({ body: { leaked: true } }));
+
+  const guarded = guardedFetch(['api.good.test'], { fetchImpl: impl });
+  await assert.rejects(
+    () => guarded('https://api.good.test/start'),
+    /undeclared host "evil.test"/,
+    'the second hop must be checked, not just the first',
+  );
+});
+
+test('a redirect that stays on an allowed host is followed', async () => {
+  const seen = [];
+  const impl = async (url) => {
+    seen.push(url);
+    return url.includes('/start')
+      ? { status: 307, headers: { get: (h) => (h === 'location' ? '/moved' : null) } }
+      : fakeResponse({ body: { ok: true } });
+  };
+
+  const guarded = guardedFetch(['api.good.test'], { fetchImpl: impl });
+  const res = await guarded('https://api.good.test/start');
+  assert.equal(res.status, 200);
+  assert.equal(seen.length, 2, 'relative Location should resolve and be followed');
+  assert.ok(seen[1].endsWith('/moved'));
+});
+
+test('a redirect loop terminates instead of hanging', async () => {
+  const impl = async () => ({
+    status: 302,
+    headers: { get: (h) => (h === 'location' ? 'https://api.good.test/again' : null) },
+  });
+  const guarded = guardedFetch(['api.good.test'], { fetchImpl: impl });
+  await assert.rejects(() => guarded('https://api.good.test/start'), /too many redirects/);
+});

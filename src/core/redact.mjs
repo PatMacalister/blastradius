@@ -38,6 +38,25 @@ const SECRETISH = [
   /\b(eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})\b/g,
 ];
 
+/**
+ * Strip control characters from text a provider module supplied.
+ *
+ * `identity`, `notes` and `remediation` are written by the provider module and printed
+ * verbatim. Left raw, a module can emit `\x1b[2K\r` to erase the line it just printed and
+ * redraw it — so the module being reported on can forge its own verdict, turning a
+ * CATASTROPHIC finding into a LOW one in the only output the user actually reads. Carriage
+ * returns and backspaces do the same job on terminals that ignore ANSI.
+ *
+ * Colour in this report is applied by report.mjs, never by provider text, so there is nothing
+ * legitimate to preserve here.
+ */
+const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F]/g;
+
+export function stripControl(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(CONTROL_CHARS, '');
+}
+
 export function scrub(text) {
   if (typeof text !== 'string') return text;
   let out = text;

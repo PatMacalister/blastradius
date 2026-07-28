@@ -48,6 +48,12 @@ recovery — see **[Real-world incidents](INCIDENTS.md)**.
 Requires Node 20+. No dependencies.
 
 ```bash
+npx blastradius              # no install — discover only, offline, nothing leaves the machine
+npx blastradius --resolve    # ask each provider what its credential can actually do
+
+# or install it
+npm install -g blastradius
+
 blastradius                  # discover only — offline, nothing leaves the machine
 blastradius --resolve        # ask each provider what its credential can actually do
 blastradius --resolve --json # machine-readable, for CI

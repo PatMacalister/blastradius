@@ -41,6 +41,9 @@ See `src/providers/_contract.mjs` for the validator — it runs in CI and in `np
 | `apiHosts` | string[] | every host the module may send the credential to |
 | `changelog` | `{ url, type }` | `rss` or `html`, for the drift scanner |
 | `patterns` | array | `{ name, regex, confidence }` for detection |
+| `introspect` | async fn | `(secret, { fetchImpl })` → Introspection |
+| `toCapabilities` | fn | Introspection → capability verbs |
+| `remediation` | fn | Introspection → least-privilege suggestions |
 
 ### Patterns must not match on shape alone when the shape is generic
 
@@ -60,6 +63,13 @@ If it does not — Railway issues bare UUIDs, Vercel 24 undistinguished alphanum
 A provider that floods reports with false positives gets the whole tool switched off, which
 takes the accurate findings down with it.
 
+**No nested unbounded quantifiers.** The validator rejects a regex that quantifies a group
+already containing `+`, `*` or `{n,}` — `/^(a+)+$/` and friends. These backtrack
+catastrophically: measured here, one match against 41 characters took 91 seconds, and
+discovery runs every pattern over every line of every file. A scanner that never finishes is
+worse than one that fails, because a run still in progress looks like a run that found
+nothing. Match a bounded length instead.
+
 ### If your provider has no usable changelog, say so
 
 Set `changelog.unwatchable: true` with a mandatory `note` explaining why. The scanner then
@@ -67,9 +77,6 @@ reports it as a standing blind spot instead of failing every week until someone 
 Do not point `url` at a JavaScript-rendered page and call it watched — it will fetch 200,
 parse nothing, and look exactly like a quiet week. Check with `npm run changelog:scan`
 before opening the PR.
-| `introspect` | async fn | `(secret, { fetchImpl })` → Introspection |
-| `toCapabilities` | fn | Introspection → capability verbs |
-| `remediation` | fn | Introspection → least-privilege suggestions |
 
 ### `apiHosts` is a hard boundary
 
@@ -77,9 +84,30 @@ before opening the PR.
 credential to any host not in `apiHosts`, and refuses plaintext HTTP. Wildcards are
 rejected by the validator.
 
-This is what makes it safe to accept provider modules from strangers: a module physically
-cannot exfiltrate what it discovers. Do not try to work around it — use `fetchImpl`, never
-global `fetch`.
+This is what makes it safe to accept provider modules from strangers: a module cannot ship a
+discovered credential to a host you did not approve. Do not try to work around it — use
+`fetchImpl`, never global `fetch`.
+
+Every redirect hop is re-checked against the allowlist, not just the first request. That gap
+was real until 2026-07-28: with the default `redirect: 'follow'`, a module could call its own
+declared host, have that host answer `302`, and the request would land anywhere — anything
+placed in the URL travelling with it. If your provider's API redirects, every hop must stay
+within `apiHosts`.
+
+### What the validator does *not* protect against
+
+Stated plainly, because a contributor and a reviewer should both know where the machine stops
+and judgement starts.
+
+- **Module code runs when it is imported, before it is validated.** `index.mjs` imports
+  statically; `loadProviders()` checks the shape afterwards. Any top-level statement in a
+  contributed module has already executed by then. There is no sandbox.
+- **`apiHosts` is checked for shape, never for legitimacy.** `api.totally-real-provider.test`
+  is a valid hostname. Only a human reading the PR can tell whether it is the provider's
+  actual API. This is the review step that cannot be automated, and it is why provider PRs are
+  merged slowly.
+- **The pattern check is a heuristic, not a proof.** It catches the backtracking shapes that
+  occur in practice. It is not a safety guarantee.
 
 ### Capability verbs are a closed vocabulary
 

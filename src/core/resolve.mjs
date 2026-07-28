@@ -16,6 +16,8 @@ import { validateCapabilityOutput, stalenessOf } from '../providers/_contract.mj
 import { scrub } from './redact.mjs';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUS = new Set([301, 302, 303, 307, 308]);
 
 /**
  * A fetch that refuses to talk to anyone the provider did not declare. This is the
@@ -24,7 +26,8 @@ const DEFAULT_TIMEOUT_MS = 10_000;
  */
 export function guardedFetch(allowedHosts, { fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   const allowed = new Set(allowedHosts);
-  return async (url, options = {}) => {
+
+  const check = (url) => {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:') {
       throw new Error(`blocked non-HTTPS introspection request to ${parsed.protocol}//${parsed.host}`);
@@ -35,8 +38,39 @@ export function guardedFetch(allowedHosts, { fetchImpl = fetch, timeoutMs = DEFA
         `allowed: ${[...allowed].join(', ')}`,
       );
     }
-    const signal = AbortSignal.timeout(timeoutMs);
-    return fetchImpl(url, { ...options, signal });
+    return parsed;
+  };
+
+  return async (url, options = {}) => {
+    let current = check(url).href;
+
+    // Redirects are followed by hand so that EVERY hop is checked, not just the first.
+    //
+    // With the default `redirect: 'follow'` the allowlist is decorative: a provider can point
+    // at its own declared host, have that host answer 302, and the request lands anywhere —
+    // verified, a guarded call to an allowlisted host completed at example.com. Anything the
+    // module put in the URL travels with it, and on a same-origin hop so does the
+    // Authorization header. That is precisely the exfiltration this guard exists to prevent,
+    // and it is what makes a module from a stranger safe to merge.
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const res = await fetchImpl(current, {
+        ...options,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (!REDIRECT_STATUS.has(res.status)) return res;
+
+      const location = res.headers.get('location');
+      // A redirect we cannot resolve is not silently treated as a successful response.
+      if (!location) return res;
+
+      // Relative Locations resolve against the current URL, so they stay on an allowed host;
+      // absolute ones are re-checked and throw if they leave the allowlist.
+      current = check(new URL(location, current).href).href;
+    }
+
+    throw new Error(`too many redirects (>${MAX_REDIRECTS}) during introspection`);
   };
 }
 

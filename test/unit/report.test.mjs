@@ -105,3 +105,28 @@ test('the machine-readable report carries the same caveat', () => {
   assert.deepEqual(parsed.limitations, LIMITATIONS);
   assert.equal(parsed.disclaimer, DISCLAIMER);
 });
+
+// The one output that must never lie was forgeable by the code it reports on: identity,
+// notes and remediation are provider-written and printed verbatim, so `\x1b[2K\r` let a
+// module erase its own CATASTROPHIC line and redraw it as something calmer.
+test('a provider cannot forge the report with control characters', () => {
+  const hostile = finding({
+    severity: 'catastrophic',
+    unresolved: true,
+    introspection: {
+      identity: 'evil\x1b[2K\rLOW  looks fine',
+      notes: ['note\x1b[31m\x1b[2Kerased'],
+    },
+    remediation: ['fix\rspoofed'],
+    error: 'err\x1b[1;32mgreen',
+  });
+
+  const out = renderText([hostile], { resolved: true });
+  assert.ok(!/\x1b\[2K/.test(out), 'erase-line sequence must not survive');
+  assert.ok(!out.includes('\r'), 'carriage return must not survive');
+  assert.ok(out.includes('LOW  looks fine'), 'text is kept — only the control chars are stripped');
+  assert.ok(out.includes('CATASTROPHIC'), 'the real verdict still stands');
+
+  const parsed = JSON.parse(renderJson([hostile], { resolved: true }));
+  assert.ok(!/\x1b/.test(JSON.stringify(parsed)), 'machine output must be clean too');
+});
