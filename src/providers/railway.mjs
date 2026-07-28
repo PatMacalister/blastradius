@@ -29,7 +29,7 @@ const ENDPOINT = 'https://backboard.railway.com/graphql/v2';
 
 export const id = 'railway';
 export const label = 'Railway';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['backboard.railway.com', 'backboard.railway.app'];
 
 /**

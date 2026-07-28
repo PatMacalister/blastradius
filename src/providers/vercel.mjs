@@ -15,7 +15,7 @@
 
 export const id = 'vercel';
 export const label = 'Vercel';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['api.vercel.com'];
 
 export const changelog = {

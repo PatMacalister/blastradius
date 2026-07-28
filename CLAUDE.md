@@ -11,7 +11,7 @@ BlastRadius is a zero-dependency Node CLI (Node 20+, ESM `.mjs`, `"type": "modul
 There is no build step, no linter, and nothing to `npm install` — zero runtime dependencies is a design decision, not an accident.
 
 ```bash
-npm test                                # unit suite (107 tests), offline, no credentials
+npm test                                # unit suite (108 tests), offline, no credentials
 node --test test/unit/redact.test.mjs   # single test file
 node --test --test-name-pattern="fingerprint" test/unit/   # single test by name
 

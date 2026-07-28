@@ -9,7 +9,7 @@
 
 export const id = 'github';
 export const label = 'GitHub';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['api.github.com'];
 
 export const changelog = {
@@ -92,7 +92,12 @@ export function toCapabilities({ scopes = [], unresolved }) {
 export function remediation({ scopes = [], unresolved }) {
   const out = [];
   if (unresolved) {
-    out.push('Re-issue as a classic PAT if you need BlastRadius to verify its scope, or audit it manually in Settings → Developer settings.');
+    out.push('Audit this token manually in Settings → Developer settings → Personal access tokens. GitHub exposes fine-grained permissions to no API, so its reach cannot be read from here.');
+    // Without this second line the advice above reads as "downgrade to a classic PAT so the
+    // tool can see it" — trading real scope reduction for legibility in our report. A
+    // fine-grained token is the better credential even though it is the one we can say least
+    // about, and a security tool should not nudge anyone the other way for its own benefit.
+    out.push('Do not widen it to a classic PAT just to make this report more specific — a fine-grained token is the better credential, and UNKNOWN here reflects what GitHub will disclose, not a defect in the token.');
     return out;
   }
   if (scopes.includes('delete_repo')) {
@@ -100,6 +105,9 @@ export function remediation({ scopes = [], unresolved }) {
   }
   if (scopes.includes('repo')) {
     out.push('Replace the blanket `repo` scope with a fine-grained PAT limited to the specific repositories this credential needs.');
+    // Say this up front, or the advice looks like it contradicts itself the moment they act
+    // on it: the recommended credential is one this tool reports as UNKNOWN.
+    out.push('Expect the replacement to report as UNKNOWN here rather than as safe — GitHub does not expose fine-grained permissions to any API. That is a limit on what can be verified, not a reason to keep the broader scope.');
   }
   if (scopes.includes('admin:org')) {
     out.push('`admin:org` allows issuing further credentials — treat as an owner-equivalent secret and avoid placing it on developer machines.');

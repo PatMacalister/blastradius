@@ -10,7 +10,7 @@ Updated: 2026-07-27
 | 2 — Market & competition | **N/A by decision** — not being monetised, so willingness-to-pay and competitive density stop being disqualifiers. See "Why free" below. |
 | 3 — Execution plan | **DONE** — `03-execution-plan.md`, five phases |
 | 4 — Landing page | Not started — deliberately deferred to Phase 4 (launch) |
-| 5 — MVP | **Phase 1 code-complete** — 6 providers, 107 unit tests passing, Docker deployment for the drift machinery. **Blocked on Phase 2**, which is account admin only Patrick can do. |
+| 5 — MVP | **Phases 1 and 2 complete** — 6 providers, 108 unit tests, 12/12 live contract tests, Docker image built and the drift machinery verified running. Remaining: VPS deploy, npm publish, launch decisions. |
 
 ## Build phases (detail in `03-execution-plan.md`)
 
@@ -18,24 +18,37 @@ Updated: 2026-07-27
 |---|---|
 | 0 — Scaffold | ✅ Complete |
 | 1 — Provider coverage | ✅ **Code complete 2026-07-27.** GitHub, Stripe, Railway, Supabase, Vercel, Cloudflare. AWS cut — see open decision 1. |
-| 2 — Drift machinery | ⛔ **Blocked on Patrick.** Needs a dedicated account + minimal-scope test credential per provider. Everything else is built and waiting. |
-| 3 — Pre-flight guard | Decide at end of Phase 2. Standing recommendation: defer past v1. |
-| 4 — Launch | Not started. Narrative ✅ **verified 2026-07-27** (`INCIDENTS.md`) — no longer a blocker. Still needs the live demo, which depends on Phase 2 accounts. |
-| 5 — Open source | Gated on Phase 2 being stable. |
+| 2 — Drift machinery | ✅ **Complete 2026-07-28.** All six providers green in one live run (12/12, 0 skipped); image builds and the watcher runs. Remaining work is VPS deployment, not correctness. |
+| 3 — Pre-flight guard | Decide now that Phase 2 is done. Standing recommendation: defer past v1. |
+| 4 — Launch | Not started. Narrative ✅ **verified 2026-07-27** (`INCIDENTS.md`). The live demo is no longer blocked — Phase 2 credentials all resolve. |
+| 5 — Open source | **Gate now met.** Was conditional on Phase 2 being stable; see below. Still a deliberate decision to make, not an automatic next step. |
 
-## Live verification — first contract run, 2026-07-27
+## Live verification — all six green, 2026-07-28
 
-The contract tests have now run against the real APIs. `lastVerified` dates are earned for
-three providers and still provisional for three.
+`npm run test:contract:local` reports **12 passed, 0 failed, 0 skipped**. Every provider
+verified against its real API in a single run for the first time. `lastVerified` is
+`2026-07-28` across all six and every date is earned by that run — none are provisional.
 
-| Provider | Live run | Notes |
+| Provider | Live introspection | Rejects a bogus credential |
 |---|---|---|
-| GitHub | ✅ green | scope header parsed as expected |
-| Railway | ✅ green | account token resolves; bogus credential correctly rejected **after a fix** |
-| Vercel | ✅ green | resolves to account-level **after a fix** |
-| Stripe | ⚠️ introspection worked | module returned correct scopes; the *expected* value in the env template was wrong |
-| Cloudflare | ❌ not verified | supplied credential rejected by the API (`Invalid API Token`) — credential issue, not a module issue |
-| Supabase | ⛔ not run | no credential supplied |
+| GitHub | ✅ | ✅ |
+| Stripe | ✅ | ✅ |
+| Railway | ✅ | ✅ |
+| Supabase | ✅ | ✅ |
+| Vercel | ✅ | ✅ |
+| Cloudflare | ✅ | ✅ |
+
+**This is what Phase 5 was gated on.** The contract harness is what makes a contributed
+provider module mechanically reviewable, so open-sourcing was conditional on it being stable
+rather than aspirational. It now is. That removes the blocker; it does not by itself decide
+that the repo should open.
+
+### The first run, 2026-07-27 — kept because of what it found
+
+The earlier run covered GitHub, Railway and Vercel. Stripe's module was correct but the
+expected value in the env template was stale, Cloudflare's supplied credential was rejected,
+and Supabase had no credential. All three were resolved on 07-28; the Cloudflare one turned
+out to be a token *type* problem, not a length problem — see `TODO-PATRICK.md` §1.
 
 **The first live run found two real bugs, which is the entire justification for this
 mechanism**, and neither was reachable by unit tests:

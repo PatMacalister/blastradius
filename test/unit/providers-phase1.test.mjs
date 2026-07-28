@@ -10,6 +10,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as github from '../../src/providers/github.mjs';
 import * as railway from '../../src/providers/railway.mjs';
 import * as supabase from '../../src/providers/supabase.mjs';
 import * as vercel from '../../src/providers/vercel.mjs';
@@ -221,6 +222,35 @@ test('an expired Cloudflare token is inactive', async () => {
   const intro = await cloudflare.introspect(`${'a'.repeat(40)}`, { fetchImpl });
   assert.equal(intro.valid, false);
 });
+
+/* ---------------------------------------------------------------- github */
+
+// GitHub predates this file's name; it had no direct module test until now.
+//
+// The advice here is the one place BlastRadius can talk a user into a *worse* credential.
+// It recommends fine-grained PATs, and then reports fine-grained PATs as UNKNOWN — so the
+// user acts on the advice and the report appears to get worse. Left unsaid, the obvious
+// reading is "go back to the classic PAT so the tool is happy", which trades real scope
+// reduction for legibility in our own output.
+test('GitHub remediation never trades real scope for legibility', () => {
+  const fineGrained = github.remediation({ scopes: [], unresolved: true });
+  assert.ok(
+    fineGrained.some((r) => /do not widen/i.test(r)),
+    'must not read as "downgrade to a classic PAT so we can see it"',
+  );
+
+  const blanketRepo = github.remediation({ scopes: ['repo'], unresolved: false });
+  assert.ok(
+    blanketRepo.some((r) => /fine-grained/i.test(r)),
+    'still recommends narrowing the token',
+  );
+  assert.ok(
+    blanketRepo.some((r) => /UNKNOWN/.test(r)),
+    'must warn the recommended replacement reports UNKNOWN, before they act on it',
+  );
+});
+
+/* ------------------------------------------------------------ cloudflare */
 
 // Regression: both live Cloudflare token formats were undetected because the patterns
 // assumed 40 characters. A real token that no pattern matches is the failure that matters.
