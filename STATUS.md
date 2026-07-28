@@ -10,7 +10,7 @@ Updated: 2026-07-27
 | 2 — Market & competition | **N/A by decision** — not being monetised, so willingness-to-pay and competitive density stop being disqualifiers. See "Why free" below. |
 | 3 — Execution plan | **DONE** — `03-execution-plan.md`, five phases |
 | 4 — Landing page | Not started — deliberately deferred to Phase 4 (launch) |
-| 5 — MVP | **Phase 1 code-complete** — 6 providers, 97 unit tests passing, Docker deployment for the drift machinery. **Blocked on Phase 2**, which is account admin only Patrick can do. |
+| 5 — MVP | **Phase 1 code-complete** — 6 providers, 107 unit tests passing, Docker deployment for the drift machinery. **Blocked on Phase 2**, which is account admin only Patrick can do. |
 
 ## Build phases (detail in `03-execution-plan.md`)
 

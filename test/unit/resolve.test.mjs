@@ -92,6 +92,23 @@ test('a test-mode Stripe key cannot move money', async () => {
   assert.ok(!finding.capabilities.includes('move:money'));
 });
 
+// A test key reaches fabricated objects only. Rating it SEVERE — as it was, via
+// admin:access — is the false positive that gets the whole scanner muted.
+test('a test-mode Stripe key is low, not severe', async () => {
+  const impl = async () => fakeResponse({ body: { id: 'acct_123' } });
+  const finding = await resolveCandidate(candidate(FAKE.stripeTest, 'stripe'), { fetchImpl: impl });
+
+  assert.equal(finding.severity, 'low');
+  assert.deepEqual(finding.capabilities, ['read:metadata']);
+  for (const cap of ['read:data', 'write:data', 'admin:access']) {
+    assert.ok(!finding.capabilities.includes(cap), `test mode must not claim ${cap}`);
+  }
+  // The live key must be unaffected — that is the finding this tool exists to make.
+  const live = await resolveCandidate(candidate(FAKE.stripeLive, 'stripe'), { fetchImpl: impl });
+  assert.equal(live.severity, 'severe');
+  assert.ok(live.capabilities.includes('admin:access'));
+});
+
 test('a restricted Stripe key is unresolved rather than guessed', async () => {
   const impl = async () => fakeResponse({ body: { id: 'acct_123' } });
   const finding = await resolveCandidate(candidate(FAKE.stripeRestricted, 'stripe'), { fetchImpl: impl });

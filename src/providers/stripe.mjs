@@ -13,7 +13,7 @@
 
 export const id = 'stripe';
 export const label = 'Stripe';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['api.stripe.com'];
 
 export const changelog = {
@@ -65,7 +65,9 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
     valid: true,
     identity,
     scopes: [`mode:${mode}`, 'full-access'],
-    notes: [],
+    notes: live
+      ? []
+      : ['Test-mode key: it reaches fabricated test objects only — no real customer, charge, or payout. The account metadata it exposes is real.'],
     unresolved: false,
   };
 }
@@ -75,11 +77,25 @@ export function toCapabilities({ scopes = [], unresolved }) {
   const caps = new Set(['read:metadata']);
   if (!scopes.includes('full-access')) return [...caps];
 
+  // Test mode stops at read:metadata, deliberately.
+  //
+  // A test key reaches fabricated objects only — no real customer, no real charge, no real
+  // payout — so describing it with these verbs was actively false: "can read customer or
+  // application data" is not true of an account with no real customers behind the key. It
+  // also rated every developer's throwaway `sk_test_` as SEVERE, and that is the false
+  // positive CONTRIBUTING.md warns about: the one that gets the whole scanner muted, taking
+  // the accurate findings down with it.
+  //
+  // The account metadata a test key exposes *is* real (it returns the live `acct_` id), and
+  // read:metadata already covers exactly that. Under-reporting is the dangerous direction,
+  // so note what is being claimed here: nothing about a test key's real-world reach is being
+  // suppressed, because it has none.
+  if (!scopes.includes('mode:live')) return [...caps];
+
   caps.add('read:data');
   caps.add('write:data');
   caps.add('admin:access');
-  // Only a live key can move real money. A test key with full access is noisy, not dangerous.
-  if (scopes.includes('mode:live')) caps.add('move:money');
+  caps.add('move:money');
   return [...caps];
 }
 
@@ -88,6 +104,9 @@ export function remediation({ scopes = [], unresolved }) {
   if (scopes.includes('mode:live') && scopes.includes('full-access')) {
     out.push('Replace this unrestricted live key with a restricted key granting only the resources this code path uses.');
     out.push('A live secret key on a developer machine reachable by a coding agent can issue refunds and transfers — rotate it and scope it down.');
+  }
+  if (scopes.includes('mode:test') && scopes.includes('full-access')) {
+    out.push('No action needed on risk grounds — a test-mode key cannot reach real customers or money. Rotate it if it has been published anywhere, since it still identifies your account.');
   }
   if (unresolved) {
     out.push('Restricted-key permissions must be reviewed manually in Dashboard → Developers → API keys.');

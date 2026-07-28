@@ -16,7 +16,7 @@ import * as vercel from '../../src/providers/vercel.mjs';
 import * as cloudflare from '../../src/providers/cloudflare.mjs';
 import { assessSeverity } from '../../src/core/capabilities.mjs';
 import { validateProvider } from '../../src/providers/_contract.mjs';
-import { fakeResponse, recordingFetch } from '../fixtures.mjs';
+import { FAKE, fakeResponse, recordingFetch } from '../fixtures.mjs';
 
 const jsonFetch = (handler) => recordingFetch(async (url, options) => handler(url, options));
 
@@ -134,8 +134,8 @@ test('an expired Supabase key is inactive', async () => {
 // and the random portion is not especially long. A pattern tuned to a guessed length would
 // miss them.
 test('real-world publishable and secret key shapes are matched', () => {
-  const pub = 'sb_publishable_DL1Fq_t8GpJvI8iDfD1Yfw_QZ84-Aq';
-  const sec = 'sb_secret_3or9M-xK2vLpQ7wRt4zYn';
+  const pub = FAKE.supabasePublishable;
+  const sec = FAKE.supabaseSecret;
   const byName = Object.fromEntries(supabase.patterns.map((p) => [p.name, p.regex]));
 
   assert.equal(`KEY=${pub}`.match(byName['publishable-key'])?.[0], pub);
@@ -143,7 +143,7 @@ test('real-world publishable and secret key shapes are matched', () => {
 });
 
 test('a publishable key classifies as publishable, not as a secret', async () => {
-  const intro = await supabase.introspect('sb_publishable_DL1Fq_t8GpJvI8iDfD1Yfw_QZ84-Aq', {
+  const intro = await supabase.introspect(FAKE.supabasePublishable, {
     fetchImpl: async () => fakeResponse({}),
   });
   assert.equal(intro.keyClass, 'publishable');
@@ -220,6 +220,33 @@ test('an expired Cloudflare token is inactive', async () => {
     fakeResponse({ body: { success: true, result: { id: 'abc', status: 'expired' } } }));
   const intro = await cloudflare.introspect(`${'a'.repeat(40)}`, { fetchImpl });
   assert.equal(intro.valid, false);
+});
+
+// Regression: both live Cloudflare token formats were undetected because the patterns
+// assumed 40 characters. A real token that no pattern matches is the failure that matters.
+test('both prefixed Cloudflare token formats are detected', () => {
+  const body = [
+    `CLOUDFLARE_API_TOKEN=cfut_${'a'.repeat(48)}`,
+    `R2_TOKEN=cfat_${'b'.repeat(48)}`,
+  ].join('\n');
+
+  const hits = cloudflare.patterns.filter((p) => p.regex.test(body)).map((p) => p.name);
+  assert.ok(hits.includes('user-api-token'), 'cfut_ (profile token) must be detected');
+  assert.ok(hits.includes('account-api-token'), 'cfat_ (account/R2 token) must be detected');
+});
+
+// Regression: /user/tokens/verify answers an account token with the same 401 it gives a
+// garbage string. Falling through would report a live credential as INACTIVE.
+test('an account-owned Cloudflare token is unresolved, never inactive', async () => {
+  const fetchImpl = recordingFetch(async () => { throw new Error('must not touch the network'); });
+  const intro = await cloudflare.introspect(`cfat_${'b'.repeat(48)}`, { fetchImpl });
+
+  assert.equal(fetchImpl.calls.length, 0, 'the user endpoint cannot verify an account token');
+  assert.equal(intro.valid, true, 'a live account token must not be reported as inactive');
+  assert.equal(intro.unresolved, true);
+  assert.equal(intro.keyClass, 'account');
+  assert.deepEqual(cloudflare.toCapabilities(intro), []);
+  assert.ok(cloudflare.remediation(intro).some((r) => /read-only/i.test(r)));
 });
 
 test('a Global API Key is never sent anywhere and is flagged loudly', async () => {

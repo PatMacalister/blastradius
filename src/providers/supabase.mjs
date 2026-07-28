@@ -22,7 +22,7 @@
 
 export const id = 'supabase';
 export const label = 'Supabase';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['api.supabase.com'];
 
 export const changelog = {

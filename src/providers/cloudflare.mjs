@@ -21,7 +21,7 @@
 
 export const id = 'cloudflare';
 export const label = 'Cloudflare';
-export const lastVerified = '2026-07-27';
+export const lastVerified = '2026-07-28';
 export const apiHosts = ['api.cloudflare.com'];
 
 export const changelog = {
@@ -30,6 +30,19 @@ export const changelog = {
 };
 
 export const patterns = [
+  // Prefixed formats, verified against live tokens 2026-07-28. These are self-identifying,
+  // so they match bare rather than being anchored on a variable name.
+  //
+  //   cfut_  user-owned API token — My Profile → API Tokens. The one /user/tokens/verify
+  //          answers, and therefore the one this module can actually introspect.
+  //   cfat_  account-owned API token — issued by the R2 "Manage API Tokens" flow among
+  //          others. See introspect(): the user endpoint rejects these outright.
+  //
+  // Both observed at 48 characters after the prefix. The length is deliberately not pinned:
+  // assuming Cloudflare tokens were exactly 40 characters is what hid this whole format,
+  // and a real token going undetected is the failure that matters here.
+  { name: 'user-api-token', regex: /\bcfut_[A-Za-z0-9_-]{40,}\b/, confidence: 0.99 },
+  { name: 'account-api-token', regex: /\bcfat_[A-Za-z0-9_-]{40,}\b/, confidence: 0.99 },
   {
     name: 'api-token-env',
     regex: /(?:CLOUDFLARE|CF)_API_TOKEN["']?\s*[:=]\s*["']?([A-Za-z0-9_-]{40})\b/,
@@ -56,6 +69,30 @@ export async function introspect(secret, { fetchImpl = fetch } = {}) {
       ],
       unresolved: true,
       keyClass: 'global',
+    };
+  }
+
+  // Account-owned tokens (cfat_) are not verifiable here. /user/tokens/verify authenticates
+  // user-owned tokens only and answers an account token with 401 "Invalid API Token" — the
+  // same response it gives a garbage string. Falling through to the fetch below would map
+  // that 401 to valid:false and render a LIVE credential as INACTIVE, which is a false
+  // negative on a token that may be able to delete R2 buckets and everything in them.
+  //
+  // Verifying one properly needs /accounts/{account_id}/tokens/verify, and the account ID is
+  // not derivable from the token. Same reasoning as the Global API Key above: this module
+  // will not guess an identity to authenticate with, so it reports the honest unknown.
+  if (/^cfat_/.test(secret)) {
+    return {
+      valid: true,
+      identity: 'Cloudflare account-owned API token (unverified)',
+      scopes: [],
+      notes: [
+        'Account-owned token. Cloudflare\'s user token endpoint cannot verify these, and confirming it would require the account ID, which this module has no reliable way to obtain.',
+        'Tokens issued through the R2 "Manage API Tokens" flow carry this prefix. An R2 token with Admin Read & Write can delete buckets and their contents.',
+        'Its reach cannot be determined here — check it in the dashboard before assuming it is narrow.',
+      ],
+      unresolved: true,
+      keyClass: 'account',
     };
   }
 
@@ -114,6 +151,12 @@ export function remediation({ keyClass }) {
     return [
       'Replace the Global API Key with a scoped API token. The Global key cannot be restricted, cannot be scoped to one zone, and is valid for everything the account owns.',
       'Rotate it if it has ever sat in a repository, shell profile, or MCP server definition — an agent that finds it holds the whole account.',
+    ];
+  }
+  if (keyClass === 'account') {
+    return [
+      'Review this token under the account it belongs to — R2 → Manage API Tokens for R2 tokens, or Account → API Tokens — and confirm it is scoped to the minimum bucket and permission set.',
+      'If it only needs to read, reissue it read-only. An R2 token with Admin Read & Write can delete a bucket and everything in it, and object versioning is off by default.',
     ];
   }
   return [

@@ -12,9 +12,9 @@
   },
   "scripts": {
     "scan": "node src/cli.mjs",
-    "test": "node --test \"test/unit/*.test.mjs\"",
-    "test:contract": "node --test \"test/contract/*.test.mjs\"",
-    "test:contract:local": "node --env-file=ops/contract-tests.env --test \"test/contract/*.test.mjs\"",
+    "test": "node --test test/unit/",
+    "test:contract": "node --test test/contract/",
+    "test:contract:local": "node --env-file=ops/contract-tests.env --test test/contract/",
     "changelog:scan": "node tools/changelog-scan.mjs"
   }
 }
