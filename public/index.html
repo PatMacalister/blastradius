@@ -170,7 +170,8 @@
       <h2 class="h2 h2--wide" id="output-title">It speaks in consequences</h2>
       <p class="band__deck">
         Every line below is printed by the tool's own renderer &mdash; not a mockup, not a
-        redesign of one. If a report reads like a permissions dump, it has failed.
+        redesign of one. Only the closing block is cut for length: a real run ends by listing
+        what it did not cover. If a report reads like a permissions dump, it has failed.
       </p>
 
       <div class="terminal">
@@ -249,9 +250,11 @@
             <h3>It never sends a credential anywhere but its issuer</h3>
             <p>
               Each provider declares the hosts it may contact. A guard blocks everything else
-              and all plaintext HTTP. Wildcards are rejected. This is what makes it safe to
-              accept a provider module from a stranger &mdash; review means reading one array,
-              not auditing every network call.
+              and all plaintext HTTP, and re-checks every redirect hop rather than only the
+              first request. Wildcards are rejected. It narrows what reviewing a contributed
+              module demands &mdash; it does not remove the need to read it, because a module
+              runs when it is imported and a declared hostname is only ever checked for
+              shape, never for whether it is really that provider.
             </p>
           </li>
           <li>
@@ -266,8 +269,10 @@
             <h3>It never claims a clean bill of health</h3>
             <p>
               An empty result says "nothing matched the providers we ship" &mdash; because that
-              is all it means. Credentials in formats it does not recognise are reported as
-              visible ignorance rather than left silently absent.
+              is all it means. Unfamiliar credentials sitting under a secret-shaped name are
+              reported as visible ignorance rather than left silently absent. A token with no
+              distinctive shape, stored under a name that gives nothing away, is missed
+              entirely &mdash; and every report says so in as many words.
             </p>
           </li>
         </ol>
