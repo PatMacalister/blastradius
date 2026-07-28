@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderText, renderJson, exitCodeFor, sortFindings, summarise } from '../../src/core/report.mjs';
+import {
+  renderText, renderJson, exitCodeFor, sortFindings, summarise, LIMITATIONS, DISCLAIMER,
+} from '../../src/core/report.mjs';
 import { FAKE } from '../fixtures.mjs';
 
 const finding = (over = {}) => ({
@@ -78,4 +80,28 @@ test('CI gate fails on unknown by default, and can be opted out', () => {
   const unknown = [finding({ severity: 'unknown', unresolved: true, capabilities: [] })];
   assert.equal(exitCodeFor(unknown), 1);
   assert.equal(exitCodeFor(unknown, { allowUnknown: true }), 0);
+});
+
+// The disclaimer is the one piece a future edit is most likely to drop as clutter, and it is
+// the difference between a report and a verdict. It must survive the empty case especially:
+// "no findings" is exactly where a reader is most inclined to hear "you are safe".
+test('every report states what it does not cover', () => {
+  const withFindings = renderText([finding()], { resolved: true });
+  const empty = renderText([], { resolved: true });
+
+  for (const [name, out] of [['with findings', withFindings], ['empty', empty]]) {
+    assert.ok(out.includes('What this report does not cover'), `${name}: heading missing`);
+    for (const limit of LIMITATIONS) {
+      assert.ok(out.includes(limit), `${name}: limitation dropped`);
+    }
+    assert.ok(out.includes(DISCLAIMER), `${name}: disclaimer dropped`);
+  }
+});
+
+// A CI consumer reading only `severity` would present this as a verdict. Both formats carry
+// the caveat, from the same constants, so they cannot drift apart.
+test('the machine-readable report carries the same caveat', () => {
+  const parsed = JSON.parse(renderJson([finding()], { resolved: true }));
+  assert.deepEqual(parsed.limitations, LIMITATIONS);
+  assert.equal(parsed.disclaimer, DISCLAIMER);
 });

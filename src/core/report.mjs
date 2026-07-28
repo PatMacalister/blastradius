@@ -81,6 +81,40 @@ export function renderUnrecognised(unrecognised) {
   return lines;
 }
 
+/**
+ * The standing caveat, printed on every run.
+ *
+ * Deliberately specific rather than generic legal boilerplate. A paragraph of "no warranty of
+ * any kind, express or implied" is skimmed by everyone and teaches nothing; naming the three
+ * things this tool genuinely cannot see tells a reader where their remaining risk actually
+ * lives. That is also the only version consistent with the rest of the output — a tool whose
+ * whole claim is that it says "I could not determine this" out loud cannot then hide its
+ * limits behind legalese.
+ *
+ * The second item is not hypothetical. A shapeless token stored under an unconventional
+ * variable name is invisible here, and that is currently true of two live credentials in this
+ * project's own contract-test config.
+ *
+ * It prints after the findings, so it never competes with them for attention.
+ */
+export const LIMITATIONS = [
+  'Only the providers BlastRadius ships are recognised — run --providers to see them, and when each was last verified.',
+  'Detection depends on a credential\'s format and the name it is stored under. Tokens with no distinctive shape are matched on the surrounding variable name, so one held under an unusual name is missed entirely.',
+  'What a credential can actually reach depends on the account, environment and infrastructure behind it — none of which is visible from here.',
+];
+
+export const DISCLAIMER =
+  'A diagnostic aid, not a security audit, and provided without warranty. Nothing here is a clean bill of health: risk may remain in setups, environments and infrastructure this tool cannot inspect.';
+
+export function renderLimitations() {
+  return [
+    '',
+    dim('What this report does not cover:'),
+    ...LIMITATIONS.map((l) => dim(`  · ${l}`)),
+    dim(DISCLAIMER),
+  ];
+}
+
 export function renderText(findings, { resolved = true, unrecognised = [] } = {}) {
   const lines = [];
   const sorted = sortFindings(findings);
@@ -89,6 +123,7 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
     lines.push('No credentials matched a known provider pattern.');
     lines.push(dim('This is not a clean bill of health — BlastRadius only knows the providers it ships.'));
     lines.push(...renderUnrecognised(unrecognised));
+    lines.push(...renderLimitations());
     return lines.join('\n');
   }
 
@@ -150,6 +185,7 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
     lines.push(dim(`Stale provider modules: ${stale.map((s) => `${s.id} (${s.age}d)`).join(', ')}`));
   }
   lines.push(...renderUnrecognised(unrecognised));
+  lines.push(...renderLimitations());
   return lines.join('\n');
 }
 
@@ -158,6 +194,11 @@ export function renderJson(findings, { resolved = true, unrecognised = [] } = {}
     version: 1,
     resolved,
     summary: summarise(findings),
+    // Carried in the machine-readable output too. A CI consumer that surfaces only the
+    // severity would otherwise present this as a verdict, which is the reading the text
+    // report works hardest to prevent.
+    limitations: LIMITATIONS,
+    disclaimer: DISCLAIMER,
     unrecognised: unrecognised.map((u) => ({
       key: u.key,
       fingerprint: fingerprint(u.secret),

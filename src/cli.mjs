@@ -38,6 +38,11 @@ Options:
   -h, --help           This.
 
 Exit codes: 0 clean, 1 at or above threshold, 2 error.
+
+BlastRadius is a diagnostic aid, not a security audit, and is provided without warranty.
+It reports what each provider's own API discloses about a credential, and says so plainly
+where it cannot determine something. Risk may remain in setups, environments and
+infrastructure it cannot inspect. Every report ends with what it does not cover.
 `.trim();
 
 function parseArgs(argv) {

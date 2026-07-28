@@ -1,8 +1,26 @@
 {
   "name": "blastradius",
   "version": "0.1.0",
-  "private": true,
   "description": "What can the credentials on this machine actually destroy?",
+  "keywords": [
+    "security",
+    "credentials",
+    "secrets",
+    "scanner",
+    "least-privilege",
+    "ai-agents",
+    "mcp"
+  ],
+  "license": "Apache-2.0",
+  "author": "Patrick Hasse (Mediaforge)",
+  "homepage": "https://github.com/PatMacalister/blastradius#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PatMacalister/blastradius.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PatMacalister/blastradius/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -10,6 +28,12 @@
   "bin": {
     "blastradius": "src/cli.mjs"
   },
+  "files": [
+    "src",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "scripts": {
     "scan": "node src/cli.mjs",
     "test": "node --test test/unit/",
