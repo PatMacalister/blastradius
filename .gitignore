@@ -15,3 +15,8 @@ tools/.changelog-state/
 # that a credential in the working tree is reachable by anything that goes looking.
 ops/*.env
 !ops/*.env.example
+
+# Patrick's working notes. Removed from history on 2026-07-28 before the repo went public:
+# it carried fingerprints of live credentials and the file:line of each in the credential
+# store, which is a reconnaissance map in a public repo. Kept locally, never tracked.
+TODO-PATRICK.md

@@ -1,0 +1,22 @@
+# Review ownership.
+#
+# GitHub cannot stop a pull request being opened, so this does not prevent one. What it does
+# is guarantee that anything touching these paths cannot merge without an explicit review —
+# which matters most for the paths where an automated check is not the safety net.
+
+# Everything, by default.
+*                       @PatMacalister
+
+# The landing page is not open to contributions. It is published marketing copy for a tool
+# whose credibility depends on not overclaiming, and its wording is deliberate — "never
+# alarmist, never overclaim coverage, consequence language". Copy changes from outside are
+# declined; see CONTRIBUTING.md. Bug reports about the page are welcome as issues.
+/public/                @PatMacalister
+
+# The egress allowlist and the module contract are the two places where review is the only
+# real control. apiHosts is checked for shape, never for legitimacy: only a human can tell
+# whether a hostname is genuinely the provider's API. Provider modules also execute at import,
+# before validation, so the whole file has to be read — not just the diff.
+/src/providers/         @PatMacalister
+/src/core/resolve.mjs   @PatMacalister
+/src/core/redact.mjs    @PatMacalister

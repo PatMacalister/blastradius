@@ -22,7 +22,7 @@ and gets fixed. The risk is **silent semantic drift**:
 
 In each case BlastRadius keeps running, keeps returning a confident report, and is now
 **wrong**. That is the false-confidence risk already recorded as open question 4 in
-`01-idea-proposal.md`, and drift is its single most likely cause. A tool that says
+the project's founding case, and drift is its single most likely cause. A tool that says
 "no blast radius found" and is wrong is worse than no tool.
 
 ## 2. Mechanism A — contract tests (primary, deterministic)

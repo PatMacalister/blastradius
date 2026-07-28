@@ -1,18 +1,13 @@
-# Pipeline Status — BlastRadius
+# Status — BlastRadius
 
-Updated: 2026-07-27
+Updated: 2026-07-28
 
 **This is not a startup. It is a free tool, built deliberately as a free tool.**
 
-| Stage | Status |
-|---|---|
-| 1 — Niche research | **DONE** — surfaced 2026-07-27 in a five-idea devtools sweep. Feasibility 7th-of-7 criteria scored; ranked #3 of 5. |
-| 2 — Market & competition | **N/A by decision** — not being monetised, so willingness-to-pay and competitive density stop being disqualifiers. See "Why free" below. |
-| 3 — Execution plan | **DONE** — `03-execution-plan.md`, five phases |
-| 4 — Landing page | Not started — deliberately deferred to Phase 4 (launch) |
-| 5 — MVP | **Phases 1 and 2 complete** — 6 providers, 108 unit tests, 12/12 live contract tests, Docker image built and the drift machinery verified running. Remaining: VPS deploy, npm publish, launch decisions. |
+Where the build stands, and why the decisions were made the way they were. The reasoning is
+recorded here so it does not get relitigated later.
 
-## Build phases (detail in `03-execution-plan.md`)
+## Build phases
 
 | Phase | Status |
 |---|---|
@@ -48,7 +43,8 @@ that the repo should open.
 The earlier run covered GitHub, Railway and Vercel. Stripe's module was correct but the
 expected value in the env template was stale, Cloudflare's supplied credential was rejected,
 and Supabase had no credential. All three were resolved on 07-28; the Cloudflare one turned
-out to be a token *type* problem, not a length problem — see `TODO-PATRICK.md` §1.
+out to be a token *type* problem, not a length problem: the R2 flow issues account-owned
+`cfat_` tokens, which the user-token verify endpoint rejects by design.
 
 **The first live run found two real bugs, which is the entire justification for this
 mechanism**, and neither was reachable by unit tests:
@@ -69,10 +65,7 @@ documented behaviour and the actual behaviour differed in both cases.
 
 | Path | What |
 |---|---|
-| `TODO-PATRICK.md` | **Start here** — the account/credential/decision tasks blocking Phase 2 |
 | `INCIDENTS.md` | Verified account of the reference incident + verification log |
-| `01-idea-proposal.md` | Stage 1 case, problem/solution, scoring |
-| `03-execution-plan.md` | Five-phase build plan, non-goals, open decisions |
 | `DRIFT-AND-OSS-PLAN.md` | Maintenance strategy — the answer to the treadmill |
 | `CONTRIBUTING.md` | Provider contribution gates |
 | `src/core/` | Discovery, resolution, capability taxonomy, redaction, reporting, entropy heuristic |
@@ -85,7 +78,7 @@ documented behaviour and the actual behaviour differed in both cases.
 
 **On the Docker deployment**, because it is not shaped like the other projects in this repo:
 nothing listens on a port. A hosted service that accepts other people's credentials is a
-non-goal (`03-execution-plan.md`) and would make this tool the thing it warns about. What is
+explicit non-goal, and would make this tool the thing it warns about. What is
 hosted is the changelog watcher and the contract-test runner — the Phase 2 maintenance
 strategy. A `scan` profile exists for CI over a mounted checkout, and it is strictly less
 thorough than the CLI on a host: it cannot see the environment or `~/.claude` MCP config,
@@ -127,21 +120,15 @@ modelling*.
 
 ## Why free — recorded so it is not relitigated later
 
-Stage 1 scored BlastRadius 6.0/10 on feasibility. The two scores dragging it down were
-**willingness-to-pay 4** and **competitive density 5**:
-
-- Small-team security tooling monetises badly, and TruffleHog's `analyze` already does
-  credential-scope analysis for roughly two dozen providers for free. Any paid version
-  competes with free OSS on day one.
-- Supabase and Cloudflare are natively shipping scoped and revocable keys, which shrinks
-  the addressable problem over time rather than growing it.
+Two things make BlastRadius a bad product and a good free tool, and they are the same two
+things:
 
 Both of those are arguments against *charging*, not against *building*. As a free tool
 they invert: an open-core CLI with an outstanding incident hook is a distribution asset,
 and the maintenance score of 5 (permanent provider-API treadmill, "please add provider X"
 requests) is the only remaining real cost.
 
-**The honest risk to accept going in:** the provider-API treadmill does not stop. Every
+**The honest risk, accepted going in:** the provider-API treadmill does not stop. Every
 provider module is a small permanent maintenance liability, and a free tool generates
 feature requests without generating revenue to service them. Scope the provider list
 deliberately and be willing to say no.
@@ -163,9 +150,9 @@ detail in **`DRIFT-AND-OSS-PLAN.md`**; summary:
   *prerequisite* for opening the repo, not a parallel track.
 
 This does not eliminate the treadmill. It changes it from silent correctness decay into a
-loud scheduled chore, and eventually distributes it. **The Stage 1 maintenance score of 5
-should not be revised upward on the strength of a plan** — revise it if and when the
-harness catches a real drift event.
+loud scheduled chore, and eventually distributes it. **Maintenance cost should not be
+considered solved on the strength of a plan** — revise that judgement if and when the harness
+catches a real drift event in the wild.
 
 ## Sources
 

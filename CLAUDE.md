@@ -73,10 +73,10 @@ Test credentials must never hold a destructive scope, and dedicated throwaway ac
 
 ## Repo docs worth knowing
 
-- `TODO-PATRICK.md` — current open tasks (account admin blocking Phase 2); `STATUS.md` — where things stand and why decisions were made; `03-execution-plan.md` — phases and non-goals.
+- `STATUS.md` — where things stand, and why the decisions were made the way they were (including "Why free" and the maintenance strategy).
 - `INCIDENTS.md` — the verified reference incident. Project docs deliberately tell it in the abstract; keep it that way.
 - `CONTRIBUTING.md` — provider contribution gates (contract test or watchable changelog, apiHosts review, who holds the test credential).
-- `public/` — static landing page, built but held from deploy. `.impeccable.md` is its design context: clinical, never alarmist, never overclaim coverage, consequence language on the page too.
+- `public/` — static landing page, built but held from deploy. Not open to contributions (see CODEOWNERS). Its register matches the tool's: clinical, never alarmist, never overclaiming coverage, consequence language on the page too.
 
 ## Writing style in this codebase
 

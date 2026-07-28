@@ -29,6 +29,18 @@ If you have a live contract test, that is what makes review mechanical: reviewin
 mapping otherwise requires the maintainer to independently know your provider's permission
 model well enough to catch a subtle error, which does not scale and is not reliable.
 
+## What this repo does and does not take
+
+**Provider modules are the contribution this project wants.** Everything below is about
+making those safe to merge from someone nobody here knows.
+
+**The landing page (`public/`) is not open to contributions.** It is published copy for a
+tool whose credibility rests on not overclaiming, and its wording is deliberate. Pull
+requests changing it will be declined — not because they are unwelcome in spirit, but
+because the register is the product. If something on the page is *wrong* — an inaccurate
+claim, a broken link, a coverage overstatement — please open an issue. That is the report
+this project most wants to receive.
+
 ## What a provider module must export
 
 See `src/providers/_contract.mjs` for the validator — it runs in CI and in `npm test`.
