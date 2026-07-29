@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/session-hook.mjs 2>/dev/null || true",
+            "timeout": 30,
+            "statusMessage": "Scanning this checkout for reachable credentials"
+          }
+        ]
+      }
+    ]
+  }
+}
