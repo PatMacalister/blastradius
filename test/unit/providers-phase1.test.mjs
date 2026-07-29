@@ -331,3 +331,36 @@ test('GitHub scopes reaching data and its backups escalate to catastrophic', () 
 test('an unresolved GitHub token yields no capabilities regardless of scopes', () => {
   assert.deepEqual(github.toCapabilities({ scopes: ['repo', 'admin:org'], unresolved: true }), []);
 });
+
+// Scopes that previously fell through to read:metadata alone, rating LOW. `write:org` is the
+// sharp one: it adds and removes organisation members. Under-reporting a scope that dangerous
+// is the failure direction this project says it has no excuse for.
+const GITHUB_PREVIOUSLY_UNMAPPED = [
+  ['write:org', 'admin:access'],
+  ['admin:public_key', 'admin:access'],
+  ['admin:gpg_key', 'admin:access'],
+  ['delete:packages', 'destroy:infra'],
+  ['user', 'read:data'],
+  ['read:packages', 'read:data'],
+  ['security_events', 'read:data'],
+  ['gist', 'write:data'],
+  ['admin:repo_hook', 'write:data'],
+];
+
+for (const [scope, expected] of GITHUB_PREVIOUSLY_UNMAPPED) {
+  test(`GitHub scope ${scope} maps to ${expected}, not bare metadata`, () => {
+    const caps = github.toCapabilities({ scopes: [scope], unresolved: false });
+    assert.ok(caps.includes(expected), `${scope} must yield ${expected}`);
+    assert.notDeepEqual(caps, ['read:metadata'], `${scope} must not rate LOW`);
+  });
+}
+
+// The other direction. Over-reporting is how a scanner earns a reputation for noise and gets
+// switched off, taking the accurate findings with it.
+test('GitHub read-only scopes are not inflated', () => {
+  for (const scope of ['notifications', 'read:org', 'repo:status']) {
+    const caps = github.toCapabilities({ scopes: [scope], unresolved: false });
+    assert.deepEqual(caps, ['read:metadata'], `${scope} should stay metadata-only`);
+    assert.equal(assessSeverity(caps), 'low');
+  }
+});

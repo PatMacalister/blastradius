@@ -117,10 +117,42 @@ export function toCapabilities({ scopes = [], unresolved }) {
     caps.add('write:data');
   }
   // `delete_repo` is the one that removes work irrecoverably for most teams.
-  if (has('delete_repo')) caps.add('destroy:infra');
-  if (has('admin:org') || has('admin:enterprise')) caps.add('admin:access');
+  if (has('delete_repo') || has('delete:packages')) caps.add('destroy:infra');
+
+  // Anything that can grant standing access to someone else, or to a future you.
+  //
+  // `write:org` was previously unmapped and fell through to read:metadata alone, so a token
+  // that can add and remove organisation members rated LOW. Under-reporting a scope this
+  // dangerous is the one failure direction this project says it has no excuse for. The key
+  // scopes are the subtler case: an attacker who can add an SSH or GPG key does not need the
+  // token again afterwards, which is privilege escalation by any useful definition.
+  if (has('admin:org') || has('admin:enterprise') || has('write:org')
+      || has('admin:public_key') || has('write:public_key')
+      || has('admin:gpg_key') || has('write:gpg_key')) {
+    caps.add('admin:access');
+  }
+
   if (has('write:packages') || has('workflow')) caps.add('deploy');
   if (has('repo') || has('codespace') || has('admin:org')) caps.add('read:secrets');
+
+  // Reads real data rather than metadata: user profile and email, private packages, and the
+  // security-event stream, which describes vulnerabilities before they are public.
+  if (has('user') || has('read:user') || has('user:email')
+      || has('read:packages') || has('security_events') || has('read:discussion')) {
+    caps.add('read:data');
+  }
+
+  // Writes application data the account owns. Repository hooks belong here rather than under
+  // deploy: a hook is a standing copy of every push event sent to a URL of the holder's
+  // choosing, which is closer to modifying the repo's configuration than to shipping code.
+  if (has('gist') || has('admin:repo_hook') || has('write:repo_hook')
+      || has('admin:org_hook') || has('write:discussion')) {
+    caps.add('write:data');
+  }
+  // `notifications` is deliberately NOT here. It reads notifications and marks them read —
+  // rating that MODERATE inflates a finding nobody needs to act on, and noise is what gets a
+  // scanner muted. It still lands at read:metadata via the catch-all below.
+
   if (scopes.length > 0) caps.add('read:metadata');
 
   return [...caps];

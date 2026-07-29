@@ -48,11 +48,26 @@ export function sortFindings(findings) {
   return [...findings].sort((a, b) => rank(b) - rank(a));
 }
 
-export function summarise(findings) {
+/**
+ * `resolved: false` is not a severity of "none".
+ *
+ * In discover-only mode nothing has been assessed, so every finding has no severity at all.
+ * Reducing that to `worst: 'none'` told a machine reader the safest possible thing about
+ * credentials nobody had looked at yet — and `counts` keyed them under the literal string
+ * "undefined". renderText already refuses to print "worst case: NONE" here for exactly this
+ * reason; the JSON path said it anyway, which is the half a CI consumer actually parses.
+ */
+export function summarise(findings, { resolved = true } = {}) {
   const counts = {};
-  for (const f of findings) counts[f.severity] = (counts[f.severity] ?? 0) + 1;
+  for (const f of findings) {
+    const key = f.severity ?? 'unassessed';
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  if (!resolved) {
+    return { total: findings.length, counts, worst: null, assessed: false };
+  }
   const worst = sortFindings(findings)[0]?.severity ?? 'none';
-  return { total: findings.length, counts, worst };
+  return { total: findings.length, counts, worst, assessed: true };
 }
 
 /**
@@ -193,7 +208,7 @@ export function renderJson(findings, { resolved = true, unrecognised = [] } = {}
   return JSON.stringify({
     version: 1,
     resolved,
-    summary: summarise(findings),
+    summary: summarise(findings, { resolved }),
     // Carried in the machine-readable output too. A CI consumer that surfaces only the
     // severity would otherwise present this as a verdict, which is the reading the text
     // report works hardest to prevent.

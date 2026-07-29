@@ -17,6 +17,7 @@ import { discover } from './core/discover.mjs';
 import { resolveAll } from './core/resolve.mjs';
 import { renderText, renderJson, exitCodeFor } from './core/report.mjs';
 import { staleProviders, providers } from './providers/index.mjs';
+import { SEVERITY_ORDER } from './core/capabilities.mjs';
 
 const USAGE = `
 blastradius — what can the credentials on this machine actually destroy?
@@ -66,14 +67,39 @@ function parseArgs(argv) {
     else if (arg === '--json') opts.json = true;
     else if (arg === '--no-env') opts.includeEnv = false;
     else if (arg === '--no-agent-config') opts.includeAgentConfig = false;
-    else if (arg === '--allow-unknown') opts.allowUnknown = true;
+    else if (arg === '--allow-unknown') { opts.allowUnknown = true; opts.gateFlagUsed = true; }
     else if (arg === '--no-heuristic') opts.heuristic = false;
-    else if (arg === '--fail-on-unrecognised' || arg === '--fail-on-unrecognized') opts.failOnUnrecognised = true;
+    else if (arg === '--fail-on-unrecognised' || arg === '--fail-on-unrecognized') { opts.failOnUnrecognised = true; opts.gateFlagUsed = true; }
     else if (arg === '--providers') opts.listProviders = true;
-    else if (arg === '--fail-on') opts.threshold = argv[++i];
+    else if (arg === '--fail-on') { opts.threshold = argv[++i]; opts.gateFlagUsed = true; }
     else if (arg === '-h' || arg === '--help') opts.help = true;
-    else if (!arg.startsWith('--')) opts.root = arg;
+    // An unrecognised flag was silently ignored, so a typo'd --fail-on became no gate at all
+    // and a mistyped --no-resolve became a resolving run. Both fail quietly in the direction
+    // that matters, so unknown flags are now an error rather than a shrug.
+    else if (arg.startsWith('-')) throw new Error(`unknown option ${arg} — run --help for the list`);
+    else opts.root = arg;
   }
+
+  // A threshold outside the ladder ranked 0, which made the gate fire on everything —
+  // including a scan with no findings — with nothing said about why. Fail-closed but silent
+  // is the combination that teaches people to distrust the exit code.
+  if (!SEVERITY_ORDER.includes(opts.threshold)) {
+    throw new Error(
+      `--fail-on must be one of ${SEVERITY_ORDER.filter((s) => s !== 'none').join(', ')} (got ${JSON.stringify(opts.threshold)})`,
+    );
+  }
+
+  // The gate flags only do anything under --resolve: without it nothing is assessed, so
+  // exitCodeFor is never consulted and the run exits 0 no matter what was found. A CI job
+  // built on `--fail-on severe` without `--resolve` is a gate that cannot fail, which is
+  // worse than no gate — it reports success over a check that never ran.
+  if (opts.gateFlagUsed && !opts.resolve) {
+    throw new Error(
+      'gate flags (--fail-on, --allow-unknown, --fail-on-unrecognised) require --resolve. ' +
+      'Without it nothing is assessed and the run always exits 0.',
+    );
+  }
+
   return opts;
 }
 
