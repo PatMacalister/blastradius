@@ -1,6 +1,6 @@
 {
   "name": "@mediaforge/blastradius",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "What can the credentials on this machine actually destroy?",
   "keywords": [
     "security",
