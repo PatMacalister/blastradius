@@ -12,7 +12,9 @@
  * be the same class of surprise this tool exists to report on.
  */
 
-import { access, constants, stat } from 'node:fs/promises';
+import { access, constants, readFile, stat } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { discover } from './core/discover.mjs';
 import { resolveAll } from './core/resolve.mjs';
 import { renderText, renderJson, exitCodeFor } from './core/report.mjs';
@@ -23,21 +25,37 @@ const USAGE = `
 blastradius — what can the credentials on this machine actually destroy?
 
 Usage:
-  blastradius [path] [options]
+  blastradius [path] [options]        path defaults to the current directory
+  blastradius help | version
+
+Two passes, and the second is opt-in:
+
+  blastradius .                       discover only. Offline, inert, nothing leaves
+                                      the machine. Reports what was found, not what
+                                      it means.
+  blastradius . --resolve             ask each provider what its credential can
+                                      actually do. Authenticates with every
+                                      credential found, so it touches real accounts.
 
 Options:
   --resolve            Ask each provider's API what the credential can actually do.
-                       Without this, BlastRadius only reports what it found, not what it means.
-  --json               Machine-readable output.
+                       Sequential by design: parallel auth bursts across your accounts
+                       look like credential stuffing to provider fraud detection, so
+                       budget roughly ten seconds per unreachable credential.
+  --json               Machine-readable output (schema version 2).
   --no-env             Skip the process environment.
   --no-agent-config    Skip ~/.claude, ~/.cursor, MCP config, ~/.aws/credentials.
-  --fail-on <level>    CI gate threshold: low|moderate|high|severe|catastrophic (default: severe)
-  --allow-unknown      Do not fail CI on credentials whose privileges could not be determined.
   --no-heuristic       Skip the search for credentials in formats BlastRadius does not know.
-  --fail-on-unrecognised
-                       Also fail CI when an unrecognised high-entropy credential is found.
   --providers          List supported providers and when each was last verified.
   -h, --help           This.
+  -v, --version        Print the version.
+
+CI gate (all of these require --resolve — without it nothing is assessed):
+  --fail-on <level>    low | moderate | high | severe | catastrophic  (default: severe)
+  --allow-unknown      Do not fail on credentials whose privileges could not be determined.
+                       Silences every unknown, not only the one you had in mind.
+  --fail-on-unrecognised
+                       Also fail when an unrecognised high-entropy credential is found.
 
 Exit codes: 0 clean, 1 at or above threshold, 2 error.
 
@@ -46,6 +64,17 @@ It reports what each provider's own API discloses about a credential, and says s
 where it cannot determine something. Risk may remain in setups, environments and
 infrastructure it cannot inspect. Every report ends with what it does not cover.
 `.trim();
+
+/** Read from package.json rather than duplicated here, where it would drift on the next release. */
+async function version() {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pkg = JSON.parse(await readFile(join(here, '..', 'package.json'), 'utf8'));
+    return `${pkg.name} ${pkg.version}`;
+  } catch {
+    return 'blastradius (version unknown — package.json not readable)';
+  }
+}
 
 function parseArgs(argv) {
   const opts = {
@@ -59,6 +88,7 @@ function parseArgs(argv) {
     heuristic: true,
     failOnUnrecognised: false,
     help: false,
+    version: false,
     listProviders: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -72,7 +102,8 @@ function parseArgs(argv) {
     else if (arg === '--fail-on-unrecognised' || arg === '--fail-on-unrecognized') { opts.failOnUnrecognised = true; opts.gateFlagUsed = true; }
     else if (arg === '--providers') opts.listProviders = true;
     else if (arg === '--fail-on') { opts.threshold = argv[++i]; opts.gateFlagUsed = true; }
-    else if (arg === '-h' || arg === '--help') opts.help = true;
+    else if (arg === '-h' || arg === '--help' || arg === 'help') opts.help = true;
+    else if (arg === '-v' || arg === '--version' || arg === 'version') opts.version = true;
     // An unrecognised flag was silently ignored, so a typo'd --fail-on became no gate at all
     // and a mistyped --no-resolve became a resolving run. Both fail quietly in the direction
     // that matters, so unknown flags are now an error rather than a shrug.
@@ -108,6 +139,11 @@ async function main() {
 
   if (opts.help) {
     process.stdout.write(`${USAGE}\n`);
+    return 0;
+  }
+
+  if (opts.version) {
+    process.stdout.write(`${await version()}\n`);
     return 0;
   }
 
