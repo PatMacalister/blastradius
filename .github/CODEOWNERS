@@ -1,8 +1,19 @@
 # Review ownership.
 #
-# GitHub cannot stop a pull request being opened, so this does not prevent one. What it does
-# is guarantee that anything touching these paths cannot merge without an explicit review —
-# which matters most for the paths where an automated check is not the safety net.
+# What this file does on its own: auto-request review from the listed owner when a pull
+# request touches a matching path. That is all. It does NOT block a merge.
+#
+# Blocking requires a branch protection rule on main with "Require a pull request before
+# merging" and "Require review from Code Owners" enabled — and, if the owner should not be
+# able to merge past it themselves, "Do not allow bypassing the above settings". Without
+# those, this file is a reminder, not a gate.
+#
+# Worth stating plainly because the failure is silent: an unenforced CODEOWNERS looks
+# identical to an enforced one in the file listing, and reads as protection that is not there.
+# It is also inert entirely on a private repo on the free plan.
+#
+# The paths below are the ones where review is the only real control, so the branch
+# protection rule is not optional for them.
 
 # Everything, by default.
 *                       @PatMacalister
