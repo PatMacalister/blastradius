@@ -39,7 +39,35 @@ const STATE_DIR = join(HERE, '.changelog-state');
  * So: weak terms count only in a title; a body must carry something that is hard to say by
  * accident.
  */
-const RELEVANT_TITLE = /\b(scope|permission|token|api key|credential|auth|oauth|deprecat|breaking|sunset|retire|removed|least privilege|iam|role|introspect)/i;
+/**
+ * Retuned 2026-07-28 against the live feeds, after the first containerised run produced a
+ * 58-entry digest — the noise-then-muted failure this mechanism is supposed to avoid.
+ *
+ * Two terms were doing nearly all the damage, and both are words whose meaning has drifted:
+ *
+ * - **"token"** now means an LLM billing unit at least as often as a credential. Every one of
+ *   Vercel's 13 matches was a bare "token" or "auth" in the body, and eleven were AI Gateway
+ *   model announcements. Not one matched on its title.
+ * - **`\bauth`** matches "author", "authored", "authors" — ordinary prose in any changelog.
+ *
+ * Both now require context. Measured on the live feeds: Vercel 13 -> 2, Cloudflare 6 -> 4,
+ * GitHub 1 -> 1, and every entry that actually concerned auth survived, including
+ * Cloudflare's "Account Role API deprecated" and "R2 Data Catalog now supports read-only API
+ * tokens". The precision problem is the one that matters here: a filter nobody trusts gets
+ * muted, and a muted filter is worse than none because it manufactures the appearance of
+ * coverage.
+ */
+const RELEVANT_TITLE = new RegExp([
+  // Unambiguous on their own.
+  'scope', 'permission', 'credential', 'oauth', 'deprecat', 'breaking', 'sunset', 'retire',
+  'removed', 'least privilege', 'iam', 'introspect', 'api key', 'authenticat', 'authoriz',
+  // "token" and "auth" cannot stand alone any more — see the note above. Both need context
+  // that an unrelated announcement does not produce by accident.
+  '(?:api|access|auth|bearer|personal|refresh|service|session|id)[\\s-]?tokens?\\b',
+  'tokens?[\\s-](?:scope|permission|expir|revocat|rotat|based)',
+  // Same for "role", which appears constantly as ordinary English.
+  'role[\\s-](?:based|assignment|permission)', 'roles? (?:api|are|is|can)',
+].map((term) => `\\b${term}`).join('|'), 'i');
 
 /**
  * Body vocabulary is restricted to *announcement* words — the things a provider says when
@@ -144,14 +172,20 @@ function parseHtml(html) {
       const body = stripTags(chunk.slice(close)).slice(0, BODY_CHARS);
       return { title, link: '', body };
     })
-    .filter((e) => e && e.title.length > 3);
+    // A bare year is a navigation link, not a changelog entry. Stripe's page carries one per
+    // year back to 2011, and each inherited the body of whatever followed it — so thirteen
+    // nav links reported themselves as auth-relevant changes on every run.
+    .filter((e) => e && e.title.length > 3 && !/^(19|20)\d{2}$/.test(e.title.trim()));
 }
 
 async function loadState(id) {
   try {
-    return JSON.parse(await readFile(join(STATE_DIR, `${id}.json`), 'utf8'));
+    const parsed = JSON.parse(await readFile(join(STATE_DIR, `${id}.json`), 'utf8'));
+    return { seen: [], ...parsed, firstRun: false };
   } catch {
-    return { seen: [] };
+    // No state file: this is the first sweep of this provider, and every entry in the feed
+    // will look new. That is a baseline, not a week's worth of change.
+    return { seen: [], firstRun: true };
   }
 }
 
@@ -212,6 +246,7 @@ async function scanProvider(provider, { fetchImpl = fetch } = {}) {
   }
 
   const state = await loadState(provider.id);
+  result.firstRun = state.firstRun === true;
   const seen = new Set(state.seen);
 
   for (const entry of entries) {
@@ -234,6 +269,11 @@ async function main() {
   }
 
   const relevant = results.filter((r) => r.new.length > 0);
+  // A provider with no state file has never been swept, so its entire feed reads as new.
+  // Reporting that as "relevant changes detected" fires the loudest signal this tool has on
+  // the one run guaranteed to be noise — which is how an operator learns to ignore it. The
+  // entries are still printed; what is withheld is the alarm.
+  const baseline = results.some((r) => r.firstRun && r.new.length > 0);
   const errored = results.filter((r) => r.error && !r.unwatchable);
   const blindSpots = results.filter((r) => r.unwatchable);
 
@@ -263,9 +303,18 @@ async function main() {
     if (relevant.length === 0 && errored.length === 0) {
       process.stdout.write('No auth-relevant changelog entries since last run.\n');
     }
+    if (baseline) {
+      process.stdout.write(
+        '\nBaseline established — this was the first sweep, so the entries above are the ' +
+        'existing backlog rather than new changes. Subsequent runs report only what appears ' +
+        'after this point.\n',
+      );
+    }
   }
 
-  return relevant.length > 0 ? 1 : 0;
+  // Exit 1 means "go look". A first sweep has nothing to compare against, so it reports
+  // what it found and returns clean.
+  return relevant.length > 0 && !baseline ? 1 : 0;
 }
 
 // Only run when invoked directly — the parsers are imported by the unit tests.
