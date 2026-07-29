@@ -23,8 +23,11 @@
 # contract-tests holds six live provider credentials. `landing` is the only thing here that
 # accepts inbound traffic. Putting both on compose's default network would let a compromised
 # web container reach the one holding the credentials — a small version of the exact story
-# this tool exists to tell. So they sit on separate networks: Docker gives no route between
-# two networks a container does not share, which is the isolation wanted here.
+# this tool exists to tell. So the drift services declare their own network and the landing
+# container does not: Docker gives no route between two networks a container does not share.
+#
+# The isolation has to be done from the drift side, not the landing side. Putting `landing` on
+# a named network of its own excludes Coolify's proxy too, and the site answers 504.
 #
 # `drift` is deliberately NOT `internal: true`. That flag severs outbound traffic as well as
 # inbound, and both drift services exist to make outbound calls — provider APIs and changelog
@@ -112,16 +115,23 @@ services:
       context: .
       dockerfile: Dockerfile.landing
     restart: unless-stopped
-    networks: [web]
+    # Deliberately NO `networks:` key. Declaring one puts the container on that network ONLY,
+    # which locks out Coolify's reverse proxy — the proxy cannot reach it and every request
+    # times out at the gateway. Left undeclared, it joins the compose default network and
+    # Coolify attaches its proxy network alongside.
+    #
+    # Isolation is preserved by the other half: changelog-watch and contract-tests declare
+    # `networks: [drift]`, so they are NOT on the default network and this container has no
+    # route to the one holding six live credentials.
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
 networks:
-  # Separate networks, so `landing` has no route to the credential-holding container.
-  # Both allow outbound: the drift services must reach provider APIs.
+  # Only the drift services get a declared network. `landing` stays on the compose default so
+  # Coolify's proxy can route to it. Not `internal: true` — that would sever outbound, and
+  # both drift services exist to make outbound calls.
   drift:
-  web:
 
 volumes:
   changelog-state:
