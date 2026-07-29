@@ -130,3 +130,20 @@ test('a provider cannot forge the report with control characters', () => {
   const parsed = JSON.parse(renderJson([hostile], { resolved: true }));
   assert.ok(!/\x1b/.test(JSON.stringify(parsed)), 'machine output must be clean too');
 });
+
+// The CI gate is the whole agent-hook contract, and exit 2 was unreachable: an unscannable
+// path reported "nothing found" and exited 0, so a mistyped path or a checkout that never
+// landed produced a green tick over a scan that did not happen. That is the failure this
+// tool tells other people not to accept.
+test('exit codes are the documented contract', () => {
+  const severe = finding({ severity: 'severe', capabilities: ['admin:access'] });
+  const low = finding({ severity: 'low', capabilities: ['read:metadata'] });
+  const unknown = finding({ severity: 'unknown', unresolved: true, capabilities: [] });
+
+  assert.equal(exitCodeFor([], { threshold: 'severe' }), 0, 'clean is 0');
+  assert.equal(exitCodeFor([severe], { threshold: 'severe' }), 1, 'at threshold is 1');
+  assert.equal(exitCodeFor([severe], { threshold: 'catastrophic' }), 0, 'below threshold is 0');
+  assert.equal(exitCodeFor([low], { threshold: 'severe' }), 0);
+  assert.equal(exitCodeFor([unknown], { threshold: 'severe' }), 1, 'unknown fails by default');
+  assert.equal(exitCodeFor([unknown], { threshold: 'severe', allowUnknown: true }), 0);
+});

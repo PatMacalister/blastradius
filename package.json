@@ -16,7 +16,7 @@
     "access": "public"
   },
   "author": "Patrick Hasse (Mediaforge)",
-  "homepage": "https://github.com/PatMacalister/blastradius#readme",
+  "homepage": "https://blastradius.patrickhasse.de",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/PatMacalister/blastradius.git"

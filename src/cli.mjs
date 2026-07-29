@@ -12,6 +12,7 @@
  * be the same class of surprise this tool exists to report on.
  */
 
+import { access, constants, stat } from 'node:fs/promises';
 import { discover } from './core/discover.mjs';
 import { resolveAll } from './core/resolve.mjs';
 import { renderText, renderJson, exitCodeFor } from './core/report.mjs';
@@ -89,6 +90,28 @@ async function main() {
       process.stdout.write(`${p.id.padEnd(12)} ${p.label.padEnd(16)} last verified ${p.lastVerified}\n`);
     }
     return 0;
+  }
+
+  // A path that cannot be scanned must not report "nothing found".
+  //
+  // discover.mjs walks with `try { readdir } catch { return }`, so an unreachable directory
+  // is indistinguishable from an empty one and the run exits 0 — a green CI gate over a scan
+  // that never happened. A mistyped path, a checkout that did not land, or a moved directory
+  // all produced a clean bill of health. That is the precise failure this tool tells other
+  // people not to accept, so it fails loudly instead.
+  try {
+    const info = await stat(opts.root);
+    if (!info.isDirectory()) {
+      throw new Error(`not a directory: ${opts.root}`);
+    }
+    // stat() succeeds on a directory the caller cannot open — it only needs the parent to be
+    // traversable. Without this check a mode-000 directory still scanned to "nothing found".
+    await access(opts.root, constants.R_OK | constants.X_OK);
+  } catch (err) {
+    const reason = err?.code === 'ENOENT' ? 'no such directory'
+      : err?.code === 'EACCES' ? 'permission denied'
+      : err?.message ?? String(err);
+    throw new Error(`cannot scan ${opts.root}: ${reason}`);
   }
 
   const { candidates, unrecognised } = await discover({
