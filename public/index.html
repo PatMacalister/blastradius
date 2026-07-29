@@ -30,7 +30,7 @@
       <span class="brand__name">BlastRadius</span>
     </a>
     <nav class="masthead__nav" aria-label="Sections">
-      <a href="#gap">The gap</a>
+      <a href="#gap">Why</a>
       <a href="#output">Output</a>
       <a href="#refusals">What it refuses</a>
       <a href="#providers">Providers</a>
@@ -46,12 +46,12 @@
 
       <p class="kicker">Fault sequence · elapsed time</p>
       <h1 class="sequence__title" id="sequence-title">
-        Nine seconds is<br>
-        <em>enough time</em>
+        Nine seconds,<br>
+        <em>start to finish</em>
       </h1>
       <p class="sequence__deck">
-        An agent is doing something routine. What follows is not a story about one company —
-        it is the shape of the failure, and it fits on one screen.
+        An agent is doing something routine. This is one documented incident, but the
+        sequence is not specific to the company it happened to.
       </p>
 
       <ol class="ledger" id="ledger">
@@ -121,11 +121,42 @@
   </section>
 
   <!-- ================================================================= GAP -->
+  <!-- ============================================================= INSTALL -->
+  <!-- LAUNCH-GATE: everything in this section becomes true at `npm publish`.
+       Until then the page must not be deployed. See .impeccable.md. -->
+  <section class="band band--install" id="install" aria-labelledby="install-title">
+    <div class="shell">
+      <p class="kicker">Install</p>
+      <h2 class="h2 h2--wide" id="install-title">One command, nothing to install</h2>
+
+      <div class="install">
+        <pre class="install__cmd"><span class="dim">$</span> npx @mediaforge/blastradius <span class="dim">--resolve</span></pre>
+        <p class="install__note">
+          Node 20+. Zero dependencies &mdash; there is nothing to audit but the tool itself.
+          Scoped because npm already has a <code>blast-radius</code>; installed globally, the
+          command is just <code>blastradius</code>.
+          Free, no account, no telemetry, and nothing is uploaded: discovery runs entirely on
+          your machine, and resolution talks only to the provider that issued each credential.
+        </p>
+      </div>
+
+      <div class="ci">
+        <p class="ci__label">As a CI gate</p>
+        <pre class="ci__cmd"><span class="dim">$</span> blastradius --resolve --fail-on severe</pre>
+        <p class="ci__note">
+          Exit 0 clean, 1 at or above threshold, 2 error. Credentials whose privileges could
+          not be determined fail by default; <code>--allow-unknown</code> opts out if you
+          consciously accept that trade.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section class="band" id="gap" aria-labelledby="gap-title">
     <div class="shell split">
       <div class="split__lead">
-        <p class="kicker">The gap</p>
-        <h2 class="h2" id="gap-title">Detection is solved.<br>Consequence is not.</h2>
+        <p class="kicker">Why</p>
+        <h2 class="h2" id="gap-title">Scanners find credentials.<br>They do not say what they reach.</h2>
       </div>
       <div class="split__body">
         <p class="lede">
@@ -167,11 +198,10 @@
   <section class="band band--output" id="output" aria-labelledby="output-title">
     <div class="shell">
       <p class="kicker">Output</p>
-      <h2 class="h2 h2--wide" id="output-title">It speaks in consequences</h2>
+      <h2 class="h2 h2--wide" id="output-title">What a report looks like</h2>
       <p class="band__deck">
-        Every line below is printed by the tool's own renderer &mdash; not a mockup, not a
-        redesign of one. Only the closing block is cut for length: a real run ends by listing
-        what it did not cover. If a report reads like a permissions dump, it has failed.
+        Every line below is printed by the tool itself, not redrawn for the page. Only the closing block is cut for length: a real run ends by listing
+        what it did not cover. Reports describe what a credential can do, not which scopes it holds.
       </p>
 
       <div class="terminal">
@@ -234,7 +264,7 @@
     <div class="shell split">
       <div class="split__lead">
         <p class="kicker">Constraints</p>
-        <h2 class="h2" id="refusals-title">What it refuses to do</h2>
+        <h2 class="h2" id="refusals-title">What it will not do</h2>
         <p class="split__lead-note">
           A tool that reads every credential on a developer's machine is itself a target.
           These are enforced in code, not promised in a README.
@@ -290,11 +320,11 @@
   <section class="band band--providers" id="providers" aria-labelledby="providers-title">
     <div class="shell">
       <p class="kicker">Coverage</p>
-      <h2 class="h2 h2--wide" id="providers-title">Six providers, and the gaps named</h2>
+      <h2 class="h2 h2--wide" id="providers-title">Six providers, and what each can determine</h2>
       <p class="band__deck">
         Coverage is deliberately narrow. A wrong "this token is harmless" is worse than no
         answer, so a provider ships only when its scope mapping can be proven against the live
-        API. Narrow and correct beats broad and rotting.
+        API. A narrow list that stays correct is more useful than a broad one that does not.
       </p>
 
       <div class="table-scroll">
@@ -341,36 +371,6 @@
     </div>
   </section>
 
-  <!-- ============================================================= INSTALL -->
-  <!-- LAUNCH-GATE: everything in this section becomes true at `npm publish`.
-       Until then the page must not be deployed. See .impeccable.md. -->
-  <section class="band band--install" id="install" aria-labelledby="install-title">
-    <div class="shell">
-      <p class="kicker">Run it</p>
-      <h2 class="h2 h2--wide" id="install-title">One command, nothing installed</h2>
-
-      <div class="install">
-        <pre class="install__cmd"><span class="dim">$</span> npx @mediaforge/blastradius <span class="dim">--resolve</span></pre>
-        <p class="install__note">
-          Node 20+. Zero dependencies &mdash; there is nothing to audit but the tool itself.
-          Scoped because npm already has a <code>blast-radius</code>; installed globally, the
-          command is just <code>blastradius</code>.
-          Free, no account, no telemetry, and nothing is uploaded: discovery runs entirely on
-          your machine, and resolution talks only to the provider that issued each credential.
-        </p>
-      </div>
-
-      <div class="ci">
-        <p class="ci__label">As a CI gate</p>
-        <pre class="ci__cmd"><span class="dim">$</span> blastradius --resolve --fail-on severe</pre>
-        <p class="ci__note">
-          Exit 0 clean, 1 at or above threshold, 2 error. Credentials whose privileges could
-          not be determined fail by default; <code>--allow-unknown</code> opts out if you
-          consciously accept that trade.
-        </p>
-      </div>
-    </div>
-  </section>
 
   <!-- =========================================================== INCIDENTS -->
   <section class="band band--incidents" id="incidents" aria-labelledby="incidents-title">
