@@ -56,7 +56,7 @@ npm install -g @mediaforge/blastradius
 
 blastradius                  # discover only — offline, nothing leaves the machine
 blastradius --resolve        # ask each provider what its credential can actually do
-blastradius --resolve --json # machine-readable, for CI
+blastradius --resolve --json # machine-readable, for CI (schema `version: 2`)
 blastradius --providers      # what's supported, and when it was last verified
 ```
 

@@ -147,3 +147,19 @@ test('exit codes are the documented contract', () => {
   assert.equal(exitCodeFor([unknown], { threshold: 'severe' }), 1, 'unknown fails by default');
   assert.equal(exitCodeFor([unknown], { threshold: 'severe', allowUnknown: true }), 0);
 });
+
+// The JSON schema version is the machine contract and moves independently of the package
+// version. It was bumped to 2 when `summary.worst` stopped reporting "none" for a
+// discover-only run — a change that breaks any consumer treating that as a clean result.
+test('the JSON payload declares its schema version', () => {
+  const resolved = JSON.parse(renderJson([finding()], { resolved: true }));
+  assert.equal(resolved.version, 2);
+  assert.equal(resolved.summary.assessed, true);
+  assert.equal(resolved.summary.worst, 'catastrophic');
+
+  // The reason for the bump: nothing has been assessed, so there is no worst case to report.
+  const discovered = JSON.parse(renderJson([finding({ severity: undefined })], { resolved: false }));
+  assert.equal(discovered.summary.worst, null, 'must not claim "none" over unassessed findings');
+  assert.equal(discovered.summary.assessed, false);
+  assert.deepEqual(discovered.summary.counts, { unassessed: 1 });
+});

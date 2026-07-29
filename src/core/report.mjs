@@ -206,7 +206,15 @@ export function renderText(findings, { resolved = true, unrecognised = [] } = {}
 
 export function renderJson(findings, { resolved = true, unrecognised = [] } = {}) {
   return JSON.stringify({
-    version: 1,
+    // Schema version, independent of the package version — a consumer should key on this
+    // rather than on what npm happens to be serving.
+    //
+    // 2 (2026-07-29): `summary.worst` is now `null` rather than `"none"` when `resolved` is
+    // false, `summary.assessed` was added, and unassessed findings count under "unassessed"
+    // rather than the literal string "undefined". A reader that treated `worst: "none"` as a
+    // clean result was being told the safest possible thing about credentials nobody had
+    // looked at yet, so the change is deliberately breaking rather than additive.
+    version: 2,
     resolved,
     summary: summarise(findings, { resolved }),
     // Carried in the machine-readable output too. A CI consumer that surfaces only the
