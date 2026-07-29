@@ -1,5 +1,5 @@
 {
-  "name": "blastradius",
+  "name": "@mediaforge/blastradius",
   "version": "0.1.0",
   "description": "What can the credentials on this machine actually destroy?",
   "keywords": [
@@ -12,6 +12,9 @@
     "mcp"
   ],
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Patrick Hasse (Mediaforge)",
   "homepage": "https://github.com/PatMacalister/blastradius#readme",
   "repository": {

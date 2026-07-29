@@ -48,11 +48,11 @@ recovery — see **[Real-world incidents](INCIDENTS.md)**.
 Requires Node 20+. No dependencies.
 
 ```bash
-npx blastradius              # no install — discover only, offline, nothing leaves the machine
-npx blastradius --resolve    # ask each provider what its credential can actually do
+npx @mediaforge/blastradius            # no install — discover only, offline, inert
+npx @mediaforge/blastradius --resolve  # ask each provider what its credential can do
 
-# or install it
-npm install -g blastradius
+# or install it, after which the command is just `blastradius`
+npm install -g @mediaforge/blastradius
 
 blastradius                  # discover only — offline, nothing leaves the machine
 blastradius --resolve        # ask each provider what its credential can actually do
