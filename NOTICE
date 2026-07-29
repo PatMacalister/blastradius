@@ -21,3 +21,11 @@ discloses, and states plainly where it cannot determine something. A report
 showing no findings means nothing matched the providers it ships — not that no
 risk is present. Risk may remain in setups, environments and infrastructure
 the tool cannot inspect.
+
+---
+
+The landing page in public/ bundles three font families under the SIL Open Font License 1.1,
+which is separate from and unaffected by the Apache-2.0 licence above: Archivo (Copyright 2020
+The Archivo Project Authors), Instrument Serif (Copyright 2022 The Instrument Serif Project
+Authors) and JetBrains Mono (Copyright 2020 The JetBrains Mono Project Authors). Licence texts
+and full attribution are in public/assets/fonts/.
