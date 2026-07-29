@@ -104,12 +104,12 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
-  # The static landing page. Read-only mount, no credentials, no application code.
+  # The static landing page. No credentials, no application code — the files are baked into
+  # the image by Dockerfile.landing rather than bind-mounted.
   #
-  # Until `npm publish` lands, the install section on this page is not yet true — it tells
-  # visitors to run `npx blastradius`. Keep this on Coolify's generated hostname and off the
-  # real domain until the package exists. Note that hostname is enumerable from Certificate
-  # Transparency logs the moment a cert is issued, so it is unadvertised rather than secret.
+  # The install section is live and correct: @mediaforge/blastradius is published, and the
+  # page tells visitors the scoped name. It was held back from the real domain until that was
+  # true, which is what the LAUNCH-GATE comment in public/index.html used to guard.
   landing:
     build:
       context: .
