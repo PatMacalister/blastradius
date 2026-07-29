@@ -165,17 +165,62 @@ Stated plainly so it does not have to be inferred:
 
 ## Agent hooks
 
-If you want an agent stopped before it does something irreversible, there is no runtime
-integration to install — the exit code is the contract:
+The exit code is the contract, so it composes with whatever hook mechanism your agent
+already has:
 
 ```bash
 blastradius --resolve --fail-on catastrophic || echo "refusing to continue"
 ```
 
-Exit 1 at or above the threshold, 0 below it, 2 on error. That is deliberately all: a runtime
-guard would mean a per-agent integration surface, and a maintenance burden this project has
-decided against carrying. A documented exit code composes with whatever hook mechanism your
-agent already has.
+Exit 1 at or above the threshold, 0 below it, 2 on error.
+
+### Telling an agent what it can reach
+
+In the reference incident, nothing in the loop knew what the credential it picked up could
+do. That is a knowledge gap, and it is one a session-start hook can close. For Claude Code,
+in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "blastradius --resolve --fail-on catastrophic || true",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The output becomes context, so the agent begins every session already knowing that the
+token in `scripts/deploy.sh` can delete your volumes *and* the backups inside them. Drop
+`--resolve` if you do not want a session start authenticating against live accounts; you
+lose the severities and keep the inventory.
+
+`|| true` is deliberate. Without it a catastrophic finding aborts the session before you can
+read why.
+
+**Be clear about what this does and does not do.** It informs; it does not enforce. An agent
+that knows a token is dangerous is less likely to reach for it, and that is worth having —
+but a hook cannot make a reachable credential unreachable. Only the remediation each finding
+prints does that.
+
+**A skill would be weaker still.** A skill is instructions a model may or may not follow, and
+the failure this tool describes is an agent doing something nobody told it to. Asking the
+failure mode to police itself is not a control. A hook at least runs whether the model
+cooperates or not.
+
+Resolution is sequential and each provider gets a 10-second timeout, so budget roughly ten
+seconds per unreachable credential — hence the generous hook timeout above. A runtime guard
+that intercepted individual tool calls would be a different tool, with a per-agent
+integration surface this project has decided against carrying.
 
 ## Development
 

@@ -146,7 +146,28 @@
         <p class="ci__note">
           Exit 0 clean, 1 at or above threshold, 2 error. Credentials whose privileges could
           not be determined fail by default; <code>--allow-unknown</code> opts out if you
-          consciously accept that trade.
+          consciously accept that trade. The gate flags require <code>--resolve</code>;
+          without it nothing is assessed and the run always exits 0.
+        </p>
+      </div>
+
+      <div class="ci">
+        <p class="ci__label">As an agent hook</p>
+        <pre class="ci__cmd"><span class="dim">$</span> blastradius --resolve --fail-on catastrophic <span class="dim">|| true</span></pre>
+        <p class="ci__note">
+          A CI gate does not bind an agent &mdash; it runs in CI, and the agent runs on your
+          machine. Wire this into a session-start hook instead and its output becomes the
+          agent's context, so it begins already knowing that the token in
+          <code>scripts/deploy.sh</code> can delete your volumes and the backups inside them.
+          In the incident above, nothing in the loop knew that. Recipe for Claude Code in the
+          <a href="https://github.com/PatMacalister/blastradius#agent-hooks">README</a>.
+        </p>
+        <p class="ci__note">
+          It informs; it does not enforce. An agent that knows a token is dangerous is less
+          likely to reach for it, but no hook makes a reachable credential unreachable &mdash;
+          only the fix each finding prints does that. A skill would be weaker still: the
+          failure here is an agent doing what nobody asked, so instructions it may choose to
+          follow are not a control.
         </p>
       </div>
     </div>
