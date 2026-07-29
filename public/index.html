@@ -236,29 +236,53 @@
              can delete projects, services, or environments
              can manage members or issue further credentials (privilege escalation)
              can read environment variables or stored secrets
+             can read customer or application data
+             can modify application data
              can trigger deployments or run code
+             can read non-sensitive metadata
              <span class="pivot">↳ can destroy data AND its backups — unrecoverable</span>
              <span class="dim">found in scripts/add-domain.sh:14</span>
-             <span class="dim">fix: Replace this account token with a project token scoped to
-             the single environment that needs it — account tokens reach
-             every workspace you belong to.</span>
+             <span class="dim">fix: Replace this account token with a project token scoped to the
+             single environment that needs it — account tokens reach every workspace
+             you belong to.</span>
+             <span class="dim">fix: Do not leave a Railway account token in the working tree, shell
+             environment, or MCP config: an agent that finds it can delete a volume
+             and its backups in one call.</span>
+             <span class="dim">fix: Keep backups outside the provider account they protect. Railway
+             stores volume backups inside the volume itself, so deleting one deletes
+             both — and the newest off-volume copy is whatever you made yourself.</span>
 
 <span class="sev sev--sev">SEVERE</span>       Supabase <span class="fp">eyJb************mnop</span>
              <span class="dim">Supabase service_role key (project ffqkmtxs)</span>
              can delete databases, volumes, or bucket contents
              can read customer or application data
              can modify application data
+             can read non-sensitive metadata
              <span class="dim">found in agent config ~/.cursor/mcp.json</span>
+             <span class="dim">fix: Move this key to a server-side secret store — anything holding it
+             reads and writes every row, RLS notwithstanding.</span>
+             <span class="dim">fix: If it has ever been committed or placed in agent-readable config,
+             rotate it: Project Settings → API keys.</span>
 
 <span class="sev sev--unk">UNKNOWN</span>      Cloudflare <span class="fp">cccc************cccc</span>
              <span class="dim">Cloudflare API token 9c1f0b</span>
              privileges COULD NOT be determined — do not read this as safe
-             <span class="dim">Cloudflare's verify endpoint returns status only — it does not
-             expose the token's permission groups, so its reach cannot be
+             <span class="dim">Token is active. Cloudflare's verify endpoint returns status only — it
+             does not expose the token's permission groups, so its reach cannot be
              determined here.</span>
+             <span class="dim">Check the token's permissions in the dashboard under My Profile →
+             API Tokens.</span>
              <span class="dim">found in env CF_API_TOKEN</span>
+             <span class="dim">fix: Cloudflare does not let a token read its own permissions. Review
+             this one in the dashboard under My Profile → API Tokens and confirm it
+             is scoped to the minimum zone and permission set.</span>
+             <span class="dim">fix: Prefer tokens with an expiry date and an IP allowlist where the
+             consuming system has a stable address.</span>
 
-3 credentials reachable, worst case: <span class="sev-inline">CATASTROPHIC</span></pre>
+3 credentials reachable, worst case: <span class="sev-inline">CATASTROPHIC</span>
+
+<span class="dim">What this report does not cover:
+  · Only the providers BlastRadius ships are recognised …</span></pre>
       </div>
 
       <div class="notes">
