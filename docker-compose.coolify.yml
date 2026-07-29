@@ -35,6 +35,10 @@
 # image. The claim on the page is "there is nothing to audit but the tool itself"; hand-rolling
 # static file serving, path traversal and all, would quietly stop that being true.
 #
+# The files are COPIED INTO an image (Dockerfile.landing), not bind-mounted. A relative bind
+# mount is an assumption about the host checkout layout, and when it is wrong Docker mounts an
+# empty directory and nginx answers 403 — which is exactly how the first deployment failed.
+#
 # SET THESE IN COOLIFY → your resource → Environment Variables. A provider whose TEST value is
 # empty skips its contract test and still exits 0, so a partially configured deployment looks
 # exactly like a fully passing one. Set all twelve, or knowingly accept the blind spot:
@@ -104,10 +108,10 @@ services:
   # real domain until the package exists. Note that hostname is enumerable from Certificate
   # Transparency logs the moment a cert is issued, so it is unadvertised rather than secret.
   landing:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.landing
     restart: unless-stopped
-    volumes:
-      - ./public:/usr/share/nginx/html:ro
     networks: [web]
     logging:
       driver: json-file

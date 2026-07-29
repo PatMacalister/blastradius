@@ -1,0 +1,22 @@
+# The landing page, baked into an image rather than bind-mounted.
+#
+# The first Coolify deployment returned 403 on every path. nginx answers a directory with no
+# index file with 403 rather than 404, and Docker silently creates an empty directory when a
+# bind-mount source does not resolve — so `- ./public:/usr/share/nginx/html:ro` fails exactly
+# that way if the host path is not where the compose file assumes. On a PaaS you do not
+# control the checkout layout, so a relative bind mount is a guess about someone else's disk.
+#
+# Copying the files in removes the question. The image either contains the page or the build
+# fails loudly, and nothing depends on host paths or host file permissions.
+#
+# Still stock nginx with no custom config: the page is static files and nothing more, and
+# "there is nothing to audit but the tool itself" should stay true of what is deployed.
+
+FROM nginx:alpine
+
+# Fail the build rather than the request if the page is missing. Without this, a mistyped
+# path produces a green deploy serving an empty root — the 403 this file exists to prevent.
+COPY public/ /usr/share/nginx/html/
+RUN test -f /usr/share/nginx/html/index.html \
+ && test -f /usr/share/nginx/html/assets/styles.css \
+ || (echo "landing page missing from image — check the COPY path" && exit 1)
