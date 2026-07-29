@@ -28,6 +28,43 @@ export const patterns = [
   { name: 'fine-grained-pat', regex: /\bgithub_pat_[A-Za-z0-9_]{60,}\b/, confidence: 0.99 },
 ];
 
+/**
+ * Scope-vocabulary probes — verifying scope names we can never hold.
+ *
+ * A test credential is forbidden a destructive scope, so `admin:org` and `delete_repo` can
+ * never appear in a contract test's EXPECT. That left the mappings behind the SEVERE findings
+ * as the only ones with no live verification at all: if GitHub renamed `admin:org`, the module
+ * would keep looking internally consistent and silently stop matching.
+ *
+ * GitHub closes that gap itself. `X-Accepted-OAuth-Scopes` names the scopes an endpoint will
+ * accept, whether or not the caller holds any of them — so a read-only token can confirm the
+ * string is still live vocabulary without ever being able to use it.
+ *
+ * Assert on the header alone, never on the status code: whether a probe returns 200 or 403
+ * depends on what the test credential happens to hold, and that is allowed to change.
+ *
+ * This proves the scope still exists and still gates this endpoint. It does not prove what
+ * holding it would do — nothing short of a destructive credential could, and that stays out
+ * of bounds. The mapping itself is covered offline in test/unit/providers-phase1.test.mjs.
+ */
+export const vocabularyProbes = [
+  {
+    scope: 'admin:org',
+    url: 'https://api.github.com/user/orgs',
+    note: 'admin:org maps to admin:access — privilege escalation, and the severest thing a GitHub PAT can carry.',
+  },
+  {
+    scope: 'codespace',
+    url: 'https://api.github.com/user/codespaces',
+    note: 'codespace maps to read:secrets.',
+  },
+  {
+    scope: 'repo',
+    url: 'https://api.github.com/repos/octocat/Hello-World',
+    note: 'repo is the blanket scope most real tokens carry; it maps to read:data, write:data and read:secrets.',
+  },
+];
+
 export async function introspect(secret, { fetchImpl = fetch } = {}) {
   const res = await fetchImpl('https://api.github.com/user', {
     headers: {

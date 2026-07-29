@@ -115,6 +115,25 @@ export function validateProvider(mod) {
     need(typeof mod[fn] === 'function', `${fn} must be a function`);
   }
 
+  // Optional. Where a provider discloses which scopes an endpoint accepts, these verify that
+  // a scope name is still live vocabulary using a credential that does not hold it — the only
+  // live coverage possible for scopes a test credential is forbidden to carry.
+  //
+  // The URL is constrained to apiHosts like any other request. A probe is still a request
+  // carrying the test credential, so it must not become a second, unreviewed egress path.
+  if (mod.vocabularyProbes !== undefined) {
+    need(Array.isArray(mod.vocabularyProbes), 'vocabularyProbes must be an array when present');
+    for (const [i, probe] of (mod.vocabularyProbes ?? []).entries()) {
+      need(typeof probe?.scope === 'string' && probe.scope.length > 0,
+        `vocabularyProbes[${i}].scope must be a non-empty string`);
+      let host = null;
+      try { host = new URL(probe?.url).hostname; } catch { /* reported below */ }
+      need(host !== null, `vocabularyProbes[${i}].url must be an absolute URL`);
+      need(host === null || (mod.apiHosts ?? []).includes(host),
+        `vocabularyProbes[${i}].url host "${host}" is not in apiHosts`);
+    }
+  }
+
   return { ok: errors.length === 0, errors };
 }
 

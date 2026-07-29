@@ -129,6 +129,42 @@ hard error, because a typo'd verb would silently drop out of severity assessment
 
 Adding a new verb is a breaking change for every provider. Open an issue first.
 
+### Scopes a test credential must never hold
+
+There is a hole this creates, and it is worth naming: a test credential is forbidden a
+destructive scope, so the mappings behind your **most severe** findings are the ones with no
+live verification. If the provider renamed that scope, the module would keep looking
+internally consistent and quietly stop matching.
+
+Two things close it, and neither requires a dangerous credential.
+
+**The mapping is pure, so test it exhaustively offline.** `toCapabilities` needs no network.
+Every scope your module maps should have a case asserting the exact capability set it
+produces — the dangerous ones especially, since nothing else covers them. Pin the negatives
+too: assert that a scope does *not* yield a capability the provider cannot actually grant.
+Over-reporting `destroy:backups` would rate ordinary tokens catastrophic and train users to
+ignore the loudest label you have.
+
+**If your provider discloses which scopes an endpoint accepts, probe it.** GitHub returns
+`X-Accepted-OAuth-Scopes` whether or not the caller holds any of them, so a read-only token
+confirms `admin:org` is still live vocabulary without ever being able to use it. Declare these
+with the optional `vocabularyProbes` export:
+
+```js
+export const vocabularyProbes = [
+  { scope: 'admin:org', url: 'https://api.github.com/user/orgs', note: 'maps to admin:access' },
+];
+```
+
+The URL must be within `apiHosts` — the validator enforces it, because a probe still carries
+the test credential and must not become a second, unreviewed egress path. Assert on the
+header only, never the status code: whether a probe returns 200 or 403 depends on what the
+credential happens to hold, and broadening it later must not turn the suite red.
+
+This proves the scope still exists and still gates that endpoint. It does not prove what
+holding it would do. Nothing short of a destructive credential could, and that stays out of
+bounds — so say plainly in your PR which scopes remain unverifiable.
+
 ### When you cannot determine privileges, say so
 
 Return `unresolved: true`. Never return an empty capability set to mean "probably fine" —

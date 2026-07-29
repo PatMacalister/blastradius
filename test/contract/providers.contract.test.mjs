@@ -59,6 +59,35 @@ for (const provider of providers) {
     assert.doesNotThrow(() => provider.remediation(introspection));
   });
 
+  // Scope-vocabulary drift, for scopes a test credential must never hold.
+  //
+  // EXPECT can only ever assert the harmless scopes this credential actually carries, which
+  // leaves the mappings behind the SEVERE findings — admin:org and friends — with no live
+  // check at all. Where a provider discloses which scopes an endpoint accepts, that gap can
+  // be closed without holding anything dangerous.
+  //
+  // Asserts the header only, never the status: whether a probe returns 200 or 403 depends on
+  // what the credential happens to hold, and broadening it must not turn this red.
+  for (const probe of provider.vocabularyProbes ?? []) {
+    test(`${provider.id}: scope "${probe.scope}" is still live vocabulary`, { skip: !secret ? 'no live credential configured' : false }, async () => {
+      const fetchImpl = guardedFetch(provider.apiHosts);
+      const res = await fetchImpl(probe.url, {
+        headers: { authorization: `Bearer ${secret}`, 'user-agent': 'blastradius', accept: 'application/vnd.github+json' },
+      });
+
+      const accepted = (res.headers.get('x-accepted-oauth-scopes') ?? '')
+        .split(',').map((x) => x.trim()).filter(Boolean);
+
+      assert.ok(
+        accepted.includes(probe.scope),
+        `VOCABULARY DRIFT: ${provider.id} no longer lists "${probe.scope}" among the scopes ` +
+        `${probe.url} accepts (got: ${accepted.join(', ') || 'none'}). Either the scope was ` +
+        `renamed or retired, or this endpoint stopped gating on it. ${probe.note ?? ''} ` +
+        'Check the capability mapping before assuming the module is still correct.',
+      );
+    });
+  }
+
   test(`${provider.id}: rejects a bogus credential`, { skip: !secret ? 'no live credential configured' : false }, async () => {
     const introspection = await provider.introspect('obviously-not-a-real-credential', {
       fetchImpl: guardedFetch(provider.apiHosts),
