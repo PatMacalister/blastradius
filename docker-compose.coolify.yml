@@ -89,7 +89,7 @@ services:
       BLASTRADIUS_EXPECT_VERCEL: ${BLASTRADIUS_EXPECT_VERCEL:-}
       BLASTRADIUS_TEST_CLOUDFLARE: ${BLASTRADIUS_TEST_CLOUDFLARE:-}
       BLASTRADIUS_EXPECT_CLOUDFLARE: ${BLASTRADIUS_EXPECT_CLOUDFLARE:-}
-    command: ["sh", "tools/watch-loop.sh", "node", "--test", "test/contract/"]
+    command: ["sh", "tools/watch-loop.sh", "node", "--test", "test/contract/providers.contract.test.mjs"]
     networks: [drift]
     logging:
       driver: json-file

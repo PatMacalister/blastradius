@@ -29,7 +29,16 @@ node src/cli.mjs .                      # discover only — offline, inert
 authenticates against real Stripe, Supabase and Cloudflare accounts. Discovery without
 `--resolve` is offline and inert.
 
-The test scripts pass a **directory** to `node --test`, not a glob. Glob expansion in `node --test` requires Node 22+, and this project supports Node 20 (`engines`, README, and both CI workflows all pin or declare it) — a quoted glob silently becomes a literal path there and the run dies with "Could not find". Keep the directory form when editing these scripts.
+The test scripts pass an **unquoted glob** to `node --test`. This is fiddly and the project runs two Node versions, so both have to work: `engines`, the README and both CI workflows say Node 20, while the Dockerfile pins `node:22-alpine`. Measured behaviour:
+
+| form | Node 20 | Node 22 |
+|---|---|---|
+| `test/unit/` (directory) | works | **fails** — `Cannot find module` |
+| `"test/unit/*.test.mjs"` (quoted glob) | **fails** — `Could not find` | works |
+| `test/unit/*.test.mjs` (unquoted) | works | works |
+| explicit file path | works | works |
+
+Only the last two are portable. npm runs scripts through a shell, so an unquoted glob is expanded by the *shell* and Node receives real filenames — which is why it works on both. Docker `command:` arrays have no shell, so those use an explicit file path instead. Do not "tidy" either into a directory or a quoted glob; each breaks exactly one of the two Node versions, and the CI that would catch it runs only the other.
 
 Contract tests skip per-provider when `BLASTRADIUS_TEST_<ID>` is unset and still exit 0, which is deliberate: a fork's PR has no secrets and must still run the unit suite and the contract validator. They are not part of `npm test`; they run weekly in CI and on PRs touching `src/providers/**` or `src/core/capabilities.mjs`.
 
