@@ -63,6 +63,8 @@ services:
     environment:
       INTERVAL_SECONDS: "604800"
       RUN_AT_START: "1"
+      # Exit 1 here means assertions failed, not "news to read". See tools/watch-loop.sh.
+      WATCH_MODE: "test"
     command: ["sh", "tools/watch-loop.sh", "node", "--test", "test/contract/providers.contract.test.mjs"]
     logging:
       driver: json-file
