@@ -288,3 +288,46 @@ test('a Global API Key is never sent anywhere and is flagged loudly', async () =
   assert.ok(intro.notes.some((n) => /unrestricted/i.test(n)));
   assert.ok(cloudflare.remediation(intro).some((r) => /scoped API token/i.test(r)));
 });
+
+// Exhaustive scope → capability coverage.
+//
+// The live contract test can only ever exercise the one minimal scope its credential holds,
+// and it must stay that way: a test credential is forbidden a destructive scope, so
+// `delete_repo` and `admin:org` can never be verified against the real API. That leaves the
+// mapping for the *dangerous* scopes — the ones that produce SEVERE and CATASTROPHIC — as the
+// least-exercised code in the project, which is exactly backwards. This table is where that
+// coverage has to come from, and it is free: toCapabilities is pure and needs no network.
+const GITHUB_SCOPE_MAP = [
+  ['repo', ['read:data', 'write:data', 'read:secrets', 'read:metadata']],
+  ['public_repo', ['read:data', 'write:data', 'read:metadata']],
+  ['delete_repo', ['destroy:infra', 'read:metadata']],
+  ['admin:org', ['admin:access', 'read:secrets', 'read:metadata']],
+  ['admin:enterprise', ['admin:access', 'read:metadata']],
+  ['write:packages', ['deploy', 'read:metadata']],
+  ['workflow', ['deploy', 'read:metadata']],
+  ['codespace', ['read:secrets', 'read:metadata']],
+];
+
+for (const [scope, expected] of GITHUB_SCOPE_MAP) {
+  test(`GitHub scope ${scope} maps to its documented capabilities`, () => {
+    const caps = github.toCapabilities({ scopes: [scope], unresolved: false });
+    assert.deepEqual([...caps].sort(), [...expected].sort());
+  });
+}
+
+// The amplifier from INCIDENTS.md, reached through real GitHub scopes rather than by
+// asserting on capability verbs directly.
+test('GitHub scopes reaching data and its backups escalate to catastrophic', () => {
+  const caps = github.toCapabilities({ scopes: ['repo', 'delete_repo'], unresolved: false });
+  assert.ok(caps.includes('destroy:infra'));
+  assert.equal(assessSeverity(caps), 'severe');
+
+  // GitHub alone cannot produce catastrophic — it has no backup-destruction verb. Pinning
+  // that so nobody "fixes" it by mapping delete_repo to destroy:backups, which would rate
+  // every CI token as unrecoverable and train people to ignore the loudest finding.
+  assert.ok(!caps.includes('destroy:backups'));
+});
+
+test('an unresolved GitHub token yields no capabilities regardless of scopes', () => {
+  assert.deepEqual(github.toCapabilities({ scopes: ['repo', 'admin:org'], unresolved: true }), []);
+});
