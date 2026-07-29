@@ -207,21 +207,6 @@ lose the severities and keep the inventory.
 `|| true` is deliberate. Without it a catastrophic finding aborts the session before you can
 read why.
 
-This project runs that hook on itself. `.claude/settings.json` and `tools/session-hook.mjs`
-are the working example — worth reading before you wire up your own, because both narrowings
-in it are deliberate:
-
-- **Discovery only, never `--resolve`.** This repository's contract-test credentials are real.
-  Resolving at session start would authenticate against six live provider accounts every time
-  anyone opened an editor.
-- **The repo tree only** — not the environment, not `~/.claude`. That file is committed, so it
-  runs for anyone who clones. Inventorying a contributor's whole machine because they opened
-  an editor is overreach whatever the tool is for; someone who wants that runs `blastradius`
-  themselves and chooses it.
-
-It stays silent when there is nothing to report. A hook that says "no credentials found" every
-session is noise, and noise is what gets a warning ignored.
-
 **Be clear about what this does and does not do.** It informs; it does not enforce. An agent
 that knows a token is dangerous is less likely to reach for it, and that is worth having —
 but a hook cannot make a reachable credential unreachable. Only the remediation each finding
